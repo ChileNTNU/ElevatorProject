@@ -4,7 +4,7 @@ import(
 	"fmt"
 	"time"
 //	"os"
-	"./network"
+	"./Network"
 )
 
 func main(){

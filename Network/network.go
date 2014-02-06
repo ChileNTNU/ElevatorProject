@@ -7,21 +7,16 @@ import(
     "time"    //This file is for the sleep time
     "runtime" //Used for printing the line on the console
 )
+
+const PortStatus = ":20019"   //Port for UDP
+const PortCmd  = ":20020"     //Port for TCP
+
 // the listener should be given some channels to put the data
 func Listener(){
-    PortStatus := ":20019"   //Port for UDP
-    //PortA := ":20019"
+    
     //IPsend := "78.91.6.254"
-    PortCmd := ":20020"     //Port for TCP
-
+    
     fmt.Println("NetworkManager started")
-
-
-    //udpAddr,err := net.ResolveUDPAddr( "udp4", "10.0.0.255:20019")
-    //checkError(err)
-    //UDPtest,err := net.Dial("udp",IPsend+PortA)
-    //check(err)
-
 
     udpAddr1,err := net.ResolveUDPAddr("udp4",PortStatus)
     check(err)
@@ -37,7 +32,6 @@ func Listener(){
     check(err)
     
     //Create go rutines 
-    //go handleConnectionUDP(ConnStatus, UDPtest)
     go handleConnectionUDP(ConnStatus)
     go handleConnectionTCP(ConnCmd)
 
@@ -51,18 +45,15 @@ func Listener(){
 
 }
 
-//func handleConnectionUDP(conn *net.UDPConn, Test net.Conn){
 func handleConnectionUDP(conn *net.UDPConn){
 
     var buf [1024]byte  
     for {
-        _,addr,err := conn.ReadFromUDP(buf[0:])
+        _,remoteAddr,err := conn.ReadFromUDP(buf[0:])
         check(err)          
-        fmt.Printf("From: %s: %s\n",addr,buf)   
-        _,err = conn.WriteToUDP(buf[0:1],addr)
+        fmt.Printf("From: %s: %s\n",remoteAddr,buf)
+        _,err = conn.WriteToUDP(buf[0:1],remoteAddr)
         check(err)
- //       _,err = Test.Write([]byte("anything"))
- //       check(err)
     }
 }
 

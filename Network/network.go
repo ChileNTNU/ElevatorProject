@@ -84,3 +84,4 @@ func check(err error){
         fmt.Fprintf(os.Stderr,"Error: %s\n",err.Error())
     }
 }
+

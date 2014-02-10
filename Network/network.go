@@ -53,7 +53,7 @@ func NetworkManager(D_Input chan Message,D_Output chan Message,R_Input chan Mess
 //	go Sender(ConnCmd,D_Input)
     for {
         time.Sleep(5000*time.Millisecond)
-        fmt.Println("For inside Network")
+//        fmt.Println("For inside Network")
     }
 
     _,file,line,_ = runtime.Caller(0)

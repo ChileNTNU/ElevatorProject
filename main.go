@@ -23,8 +23,7 @@ func main(){
 	fmt.Println("Hello!")
 //	fmt.Println(testmsg)
 	go network.NetworkManager(D_Input,D_Output,R_Input,R_Output)
-	fmt.Println("after go")
-	D_Input <- testmsg
+	R_Input <- testmsg
 	fmt.Println("Msg in channel")
 
 	for{

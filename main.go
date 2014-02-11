@@ -9,23 +9,24 @@ import(
 
 
 func main(){
-	D_Input := make(chan network.Message)
-	D_Output := make(chan network.Message)
-	R_Input := make(chan network.Message)
-	R_Output := make(chan network.Message)
+	D_Input := make(chan network.Message,100)
+	D_Output := make(chan network.Message,100)
+	R_Input := make(chan network.Message,100)
+	R_Output := make(chan network.Message,100)
 
 	var testmsg network.Message
+	fmt.Println(buf)
 	testmsg.IDsender = "myIP"
-	testmsg.IDreceiver = "yourIP"
+	testmsg.IDreceiver = "78.91.16.126"
 	testmsg.MsgType = 1
 	testmsg.Size = 2
-	testmsg.Body[0] = 3
-	testmsg.Body[1] = 4
+	testmsg.Body = buf
 
 
 	fmt.Println("Hello!")
 //	fmt.Println(testmsg)
 	go network.NetworkManager(D_Input,D_Output,R_Input,R_Output)
+
 	R_Output <- testmsg
 	testmsg.MsgType = 2
 	R_Output <- testmsg
@@ -35,13 +36,15 @@ func main(){
 	R_Output <- testmsg
 	testmsg.MsgType = 5
 	R_Output <- testmsg
+
 	fmt.Println("Msg in channel")
+	D_Output <- testmsg
 
 	for{
-//		fmt.Println("Doing something else")
+		fmt.Println("Doing something else")
 //		time.Sleep(3000 * time.Millisecond)
-		i := <-R_Input
-		fmt.Println(i)
+		i := <-D_Input
+		fmt.Println("Main:",i)
 	}
 
 }

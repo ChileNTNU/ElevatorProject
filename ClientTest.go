@@ -9,8 +9,8 @@ import (
 //	"bufio"
 )
 
-const REMOTEIP = "78.91.18.88"
-const LOCALIP = "78.91.7.106"
+const REMOTEIP = "78.91.19.89"
+const LOCALIP = "78.91.4.50"
 const PORTTCP = ":20020"
 const PORTUDP = ":20019"
 
@@ -31,7 +31,7 @@ func main(){
 	UDPconn,err = net.DialUDP("udp",LocalAddrUDP,RemoteAddrUDP)
 	checkError(err)
 	//net.DialTCP does not work somehow
-	conn,err = net.Dial("tcp",REMOTEIP+PORTTCP)
+//	conn,err = net.Dial("tcp",REMOTEIP+PORTTCP)
 	checkError(err)
 
 

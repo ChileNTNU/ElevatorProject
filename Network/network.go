@@ -18,7 +18,7 @@ type Message struct{
 	IDreceiver string
 	MsgType byte
 	Size byte
-	body [16]byte
+	Body [16]byte
 }
 
 
@@ -28,11 +28,11 @@ func NetworkManager(D_Input chan Message,D_Output chan Message,R_Input chan Mess
 
     LocalAddrStatus,err := net.ResolveUDPAddr("udp4",PORT_STATUS)
     check(err)
-	RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","78.91.19.160"+PORT_STATUS)
+	RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","78.91.19.89"+PORT_STATUS)
     check(err)
     LocalAddrCmd,err := net.ResolveUDPAddr("udp4",PORT_CMD)
     check(err)
-	RemoteAddrCmd,err := net.ResolveUDPAddr("udp4","78.91.19.160"+PORT_CMD)
+	RemoteAddrCmd,err := net.ResolveUDPAddr("udp4","78.91.19.89"+PORT_CMD)
     check(err)
 
     _,file,line,_ := runtime.Caller(0)
@@ -47,13 +47,13 @@ func NetworkManager(D_Input chan Message,D_Output chan Message,R_Input chan Mess
 
 
     //Create go routines 
-	go Listener(ConnStatus,R_Output)
-	go Listener(ConnCmd,D_Output)
-	go Sender(ConnStatus,R_Input)
-//	go Sender(ConnCmd,D_Input)
+	go Listener(ConnStatus,R_Input)
+	go Listener(ConnCmd,D_Input)
+	go Sender(ConnStatus,R_Output)
+	go Sender(ConnCmd,D_Output)
     for {
         time.Sleep(5000*time.Millisecond)
-//        fmt.Println("For inside Network")
+        fmt.Println("For inside Network")
     }
 
     _,file,line,_ = runtime.Caller(0)
@@ -64,27 +64,32 @@ func NetworkManager(D_Input chan Message,D_Output chan Message,R_Input chan Mess
 func Listener(conn *net.UDPConn,Channel chan<- Message){
 	var MsgRecv Message
     for {
+		for i:=0; i<5; i++{
+			MsgRecv.Size = byte(i)
+			Channel <-MsgRecv
+		}
 		//Create decoder
 		dec := gob.NewDecoder(conn)
 		//Receive message on connection
 		err := dec.Decode(&MsgRecv)
         check(err)
-		fmt.Println(MsgRecv)
-		Channel <-MsgRecv
+		fmt.Printf("Recv: %s %s %d %d",MsgRecv.IDsender,MsgRecv.IDreceiver,MsgRecv.MsgType,MsgRecv.Size)
+
     }
 }
 
 func Sender(conn *net.UDPConn, Channel <-chan Message){
-	b := [16]byte {3,5}
-	MsgSend := Message{"ID1","ID2",1,2,b}
-	fmt.Println(MsgSend)
-	MsgSend =<-Channel
-	fmt.Println(MsgSend)
-	//Create encoder
-	enc := gob.NewEncoder(conn)
-	//Send encoded message on connection
-	err := enc.Encode(MsgSend)
-	check(err)
+	for{
+		var MsgSend Message
+		MsgSend =<-Channel
+//		fmt.Println(MsgSend)
+		//Create encoder
+		enc := gob.NewEncoder(conn)
+		//Send encoded message on connection
+		err := enc.Encode(MsgSend)
+		check(err)
+//		fmt.Println("Msg sent")
+	}
 }
 
 

@@ -15,10 +15,11 @@ func main(){
 	R_Output := make(chan network.Message,100)
 
 	var testmsg network.Message
-	fmt.Println(buf)
+	buf := []byte {3,4}
+//	fmt.Println(buf)
 	testmsg.IDsender = "myIP"
-	testmsg.IDreceiver = "78.91.16.126"
-	testmsg.MsgType = 1
+	testmsg.IDreceiver = "129.241.187.161"
+	testmsg.MsgType = 0
 	testmsg.Size = 2
 	testmsg.Body = buf
 
@@ -43,7 +44,7 @@ func main(){
 	for{
 		fmt.Println("Doing something else")
 //		time.Sleep(3000 * time.Millisecond)
-		i := <-D_Input
+		i := <-R_Input
 		fmt.Println("Main:",i)
 	}
 

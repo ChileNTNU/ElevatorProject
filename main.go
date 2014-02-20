@@ -4,47 +4,70 @@ import(
 	"fmt"
 //	"time"
 //	"os"
+	"container/list"   //For using lists		
 	"./Network"
+	"./Server"
+	"./Redundancy"
 )
 
 
 func main(){
-	D_Input := make(chan network.Message,100)
-	D_Output := make(chan network.Message,100)
-	R_Input := make(chan network.Message,100)
-	R_Output := make(chan network.Message,100)
+	// Channels for NetworkManager
+	Chan_Network_Decision := make(chan network.Message,100)
+	Chan_Decision_Network := make(chan network.Message,100)
+	Chan_Network_Redun := make(chan network.Message,100)
+	Chan_Redun_Network := make(chan network.Message,100)
+
+	// Channels for Server
+	Chan_Redun_Server := make(chan server.ServerMsg)
+//	Chan_Dec_Server := make(chan server.ServerMsg)
+//	Chan_HW_Server := make(chan server.ServerMsg)
 
 	var testmsg network.Message
-	buf := []byte {3,4}
-//	fmt.Println(buf)
 	testmsg.IDsender = "myIP"
-	testmsg.IDreceiver = "129.241.187.161"
+	testmsg.IDreceiver = "78.91.17.248"
 	testmsg.MsgType = 0
-	testmsg.Size = 2
-	testmsg.Body = buf
+
+	var GotoQueue *list.List
+	GotoQueue = list.New()
+
+	GotoQueue.PushBack(6)
+	GotoQueue.PushBack(66)
+	GotoQueue.PushBack(666)
+	GotoQueue.PushBack(6666)
+
+	var ServerTest server.ServerMsg
+	ServerTest.Cmd = server.CMD_ATTACH
+	ServerTest.QueueID = server.ID_GOTOQUEUE
+	ServerTest.NewQueue = GotoQueue
 
 
 	fmt.Println("Hello!")
-//	fmt.Println(testmsg)
-	go network.NetworkManager(D_Input,D_Output,R_Input,R_Output)
+	go redundancy.Redundancy(Chan_Redun_Server,Chan_Redun_Network,Chan_Network_Redun)
+	go network.NetworkManager(Chan_Network_Decision,Chan_Decision_Network,Chan_Network_Redun,Chan_Redun_Network)
+	go server.Server(Chan_Redun_Server,nil,nil)
 
-	R_Output <- testmsg
+	// Network messages
+	Chan_Redun_Network <- testmsg
 	testmsg.MsgType = 2
-	R_Output <- testmsg
+	Chan_Redun_Network <- testmsg
 	testmsg.MsgType = 3
-	R_Output <- testmsg
+	Chan_Redun_Network <- testmsg
 	testmsg.MsgType = 4
-	R_Output <- testmsg
+	Chan_Redun_Network <- testmsg
 	testmsg.MsgType = 5
-	R_Output <- testmsg
+	Chan_Redun_Network <- testmsg
 
 	fmt.Println("Msg in channel")
-	D_Output <- testmsg
+	Chan_Decision_Network <- testmsg
+
+	// Message to server
+	Chan_Redun_Server <- ServerTest
 
 	for{
 		fmt.Println("Doing something else")
 //		time.Sleep(3000 * time.Millisecond)
-		i := <-R_Input
+		i := <-Chan_Network_Redun
 		fmt.Println("Main:",i)
 	}
 

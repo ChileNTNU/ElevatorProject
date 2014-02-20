@@ -10,6 +10,7 @@ const CMD_ADD = 1
 const CMD_EXTRACT = 2
 const CMD_READ_ALL = 3
 const CMD_REPLACE_ALL = 4
+const CMD_ATTACH = 5
 
 //Queues IDs constants
 const ID_GOTOQUEUE = 1
@@ -17,7 +18,7 @@ const ID_MOVEQUEUE = 2
 const ID_REQQUEUE = 3
 const ID_ACTUAL_POS = 4
 
-const DEBUG = false
+const DEBUG = true
 
 type ServerMsg struct{
 	Cmd int          //Command to exeute
@@ -43,6 +44,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Test <-chan ServerMsg, Chan_Prueba
 	MoveQueue = list.New()
 	ReqQueue = list.New()
 	ActualPos = 1	
+
 
 	var extractValue int	
 
@@ -82,7 +84,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Test <-chan ServerMsg, Chan_Prueba
 					}
 				}else{
 					fmt.Println("CMD_ADD:TargetQueue NIL")
-				}				
+				}
 			case CMD_EXTRACT:   //It is just extracting the first value			
 				if TargetQueue != nil {
 					if TargetQueue.Front() != nil{
@@ -106,8 +108,8 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Test <-chan ServerMsg, Chan_Prueba
 				if MsgRecv.QueueID == ID_ACTUAL_POS {
 					MsgRecv.ChanVal <- ActualPos	
 				}else{
-					MsgRecv.ChanQueue <- TargetQueue						
-				}											
+					MsgRecv.ChanQueue <- TargetQueue
+				}
 			case CMD_REPLACE_ALL:
 				if MsgRecv.QueueID == ID_ACTUAL_POS {
 					ActualPos = MsgRecv.Value
@@ -116,6 +118,12 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Test <-chan ServerMsg, Chan_Prueba
 					TargetQueue.Init()
 					TargetQueue.PushBackList(MsgRecv.NewQueue)				
 				}				
+			case CMD_ATTACH:
+				if(TargetQueue != nil && MsgRecv.NewQueue != nil){
+					TargetQueue.PushBackList(MsgRecv.NewQueue)
+				}else{
+					fmt.Println("CMD_ATTACH: Target Queue or NewQueue nil")
+				}
 			default:
 				fmt.Println("Command not possible")
 		}

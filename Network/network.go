@@ -26,14 +26,17 @@ type Message struct{
 	IDsender string
 	IDreceiver string
 	MsgType byte
-	Size byte
-	Body []byte
+	SizeGotoQueue int
+	GotoQueue []int
+	SizeMoveQueue int
+	MoveQueue []int
+	ActualPos int
 }
 
 var LocalIP string
 
 
-func NetworkManager(D_Input chan Message,D_Output chan Message,R_Input chan Message,R_Output chan Message,){
+func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,ChanToRedun chan Message,ChanFromRedun chan Message,){
 
     fmt.Println("NetworkManager started")
 
@@ -71,10 +74,10 @@ func NetworkManager(D_Input chan Message,D_Output chan Message,R_Input chan Mess
 
 
 //Create go routines 
-	go ListenerStatus(ConnStatusListen,R_Input)
-	go ListenerCmd(ConnCmd,D_Input)
-	go SenderStatus(ConnStatusSend,R_Output)
-	go SenderCmd(D_Output)
+	go ListenerStatus(ConnStatusListen,ChanToRedun)
+	go ListenerCmd(ConnCmd,ChanToDecision)
+	go SenderStatus(ConnStatusSend,ChanFromRedun)
+	go SenderCmd(ChanFromDecision)
 
 	//Do nothing so that go routines are not terminated
     for {

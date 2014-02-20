@@ -18,7 +18,7 @@ const ID_MOVEQUEUE = 2
 const ID_REQQUEUE = 3
 const ID_ACTUAL_POS = 4
 
-const DEBUG = false
+const DEBUG = true
 
 type ServerMsg struct{
 	Cmd int          //Command to exeute

@@ -71,7 +71,7 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
 	MsgToNetwork.ActualPos = 0
 
 
-	tick100ms := time.Tick(100*time.Millisecond)
+	tick100ms := time.Tick(1000*time.Millisecond)
 	for{
 		select{
 			case <-tick100ms:

@@ -31,10 +31,10 @@ func main(){
 	var GotoQueue *list.List
 	GotoQueue = list.New()
 
-	GotoQueue.PushBack(1)
-	GotoQueue.PushBack(11)
-	GotoQueue.PushBack(111)
-	GotoQueue.PushBack(1111)
+	GotoQueue.PushBack(6)
+	GotoQueue.PushBack(66)
+	GotoQueue.PushBack(666)
+	GotoQueue.PushBack(6666)
 
 	var ServerTest server.ServerMsg
 	ServerTest.Cmd = server.CMD_ATTACH

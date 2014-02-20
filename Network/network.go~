@@ -47,7 +47,7 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
   check(err)
 
   //Address to where we are going to send our status(BROADCAST)
-	RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","78.91.6.252"+PORT_STATUS)
+	RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","129.241.187.4"+PORT_STATUS)
 	check(err)
 
 	// Make connection for sending

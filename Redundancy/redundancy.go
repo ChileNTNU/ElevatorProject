@@ -25,7 +25,7 @@ type Participant struct{
 	Timestamp time.Time
 }
 
-func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- network.Message, ChanFromNetwork <-chan network.Message, ChanToHardware chan<- [FLOORS]bool){
+func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- network.Message, ChanFromNetwork <-chan network.Message, ChanToHardware chan<- *list.List){
 
 	var NewParticipant Participant
 	NewParticipant.IPsender = "1.2.3.4"
@@ -37,7 +37,9 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 	var NetworkMsg network.Message
 	var ServerMsg server.ServerMsg
 	var TempElement *list.Element
-	var GlobalLights [FLOORS]bool
+	//New list which will contain all the buttons light
+	var GlobalLights *list.List
+	GlobalLights = list.New()
 /*
 	var GotoQueue1 *list.List
 	var GotoQueue2 *list.List
@@ -73,8 +75,6 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 
 	fmt.Println("Redun")
 
-
-
 	var ParticipantsList *list.List
 	ParticipantsList = list.New()
 /*
@@ -91,7 +91,6 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 */
 
 	go SendStatus(ChanToNetwork,ChanToServer)
-
 
 	timeout := time.Tick(200*time.Millisecond)
 	for{
@@ -119,7 +118,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 					if time.Now().Sub(old_timestamp) > TIMEOUT {
 						ServerMsg.Cmd = server.CMD_ATTACH
 						ServerMsg.QueueID = server.ID_REQQUEUE
-						ServerMsg.Value = 0
+						//ServerMsg.Value = 0  //It is not needed the actual position for attaching to the reqQueue
 						ServerMsg.NewQueue = e.Value.(Participant).GotoQueue
 						ServerMsg.ChanVal = nil
 						ServerMsg.ChanQueue = nil
@@ -130,30 +129,26 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 					}
 				}
 
+            //Code for sending the GlobalLights list to Hardware module
+				//Reset list for top buttons lights
+				GlobalLights.Init()
 
-				//Reset array
-				for i := 0; i < FLOORS; i++{
-					GlobalLights[i] = false
-				}
-				// Set according light if floor is in GotoQueue
+				//Set according lights if floor is in GotoQueue
+				//Now we have to look on all the GotoQueues of all participants
+				//For all the elements which its direction is not server.NONE
+				//And add them to the GlobalLights list
 				for e := ParticipantsList.Front(); e != nil; e = e.Next(){
 					fmt.Println(e.Value.(Participant).IPsender)
 					for h := e.Value.(Participant).GotoQueue.Front(); h != nil; h = h.Next(){
-						GlobalLights[h.Value.(int) - 1] = true
-						fmt.Println(h.Value.(int))
-					}
-				}
-
-				fmt.Println(GlobalLights)
-				// Remove those which are in MoveQueue (-> internal lights)
-				for e := ParticipantsList.Front(); e != nil; e = e.Next(){
-					for h := e.Value.(Participant).MoveQueue.Front(); h != nil; h = h.Next(){
-						GlobalLights[h.Value.(int) - 1] = false
+                  if h.Value.(server.ElementQueue).Direction != server.NONE{
+                     GlobalLights.PushBack(h.Value.(server.ElementQueue))
+                  }
+						fmt.Println(h.Value.(server.ElementQueue))
 					}
 				}
 
 				// Tell HW module which lights to turn on/off
-				fmt.Println(GlobalLights)
+				printList(GlobalLights)
 				ChanToHardware <- GlobalLights
 		}
 	}
@@ -161,7 +156,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 
 
 func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server.ServerMsg){
-	ChanToServer_Redun_Int := make(chan int)
+	ChanToServer_Redun_ElementQueue := make(chan server.ElementQueue)
 	ChanToServer_Redun_Queue := make(chan *list.List)
 
 	var GotoQueue *list.List
@@ -172,12 +167,16 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
 	MoveQueue = list.New()
 	ActualPos = -1
 
-
-	buf := []int {0,0}  //for initializing network message
+   //Dummy variable for reading the actual position from the server
+   var dummyActualPos server.ElementQueue
+   dummyActualPos.Direction = server.NONE
+   
+   //for initializing network message, empty array of ElementQueue
+	buf := []server.ElementQueue {{0,0}}  
 
 	var MsgToServer server.ServerMsg
 	MsgToServer.Cmd = server.CMD_READ_ALL
-	MsgToServer.ChanVal = ChanToServer_Redun_Int
+	MsgToServer.ChanVal = ChanToServer_Redun_ElementQueue
 	MsgToServer.ChanQueue = ChanToServer_Redun_Queue
 
 	var MsgToNetwork network.Message
@@ -220,8 +219,8 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
 				MsgToServer.QueueID = server.ID_ACTUAL_POS
 
 				ChanToServer <- MsgToServer
-				ActualPos =<- ChanToServer_Redun_Int
-
+				dummyActualPos =<- ChanToServer_Redun_ElementQueue
+				ActualPos = dummyActualPos.Floor
 
 				// Build network message
 				MsgToNetwork.SizeGotoQueue = GotoQueue.Len()
@@ -238,18 +237,18 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
 }
 
 
-func listToArray(Queue *list.List) []int {
+func listToArray(Queue *list.List) [] server.ElementQueue {
 	var index int = 0
-	buf := make([]int, Queue.Len())
+	buf := make([] server.ElementQueue, Queue.Len())
 
 	for e := Queue.Front(); e != nil; e = e.Next(){
-		buf[index] = e.Value.(int)
+		buf[index] = e.Value.(server.ElementQueue)
 		index++
 	}
 	return buf
 }
 
-func arrayToList(array []int, size int) *list.List {
+func arrayToList(array [] server.ElementQueue, size int) *list.List {
 	var List *list.List
 	List = list.New()
 
@@ -271,10 +270,9 @@ func partOfParticipantList(List *list.List, IP string) *list.Element {
 }
 
 
-
 func printList(listToPrint *list.List){		
 	for e := listToPrint.Front(); e != nil; e = e.Next(){		
-		fmt.Printf("%d ->",e.Value)
+		fmt.Printf("%d, %d ->",e.Value.(server.ElementQueue).Floor, e.Value.(server.ElementQueue).Direction)
 	}	
 	fmt.Println("")
 }

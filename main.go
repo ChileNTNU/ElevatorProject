@@ -24,7 +24,7 @@ func main(){
 //	Chan_HW_Server := make(chan server.ServerMsg)
 
 	// Channel for Hardware
-	Chan_Redun_Hardware := make(chan [redundancy.FLOORS]bool)
+	Chan_Redun_Hardware := make(chan *list.List)
 
 	var testmsg network.Message
 	testmsg.IDsender = "myIP"
@@ -34,10 +34,17 @@ func main(){
 	var GotoQueue *list.List
 	GotoQueue = list.New()
 
-	GotoQueue.PushBack(1)
-	GotoQueue.PushBack(11)
-	GotoQueue.PushBack(111)
-	GotoQueue.PushBack(1111)
+   var dummyElementQueue server.ElementQueue
+   dummyElementQueue.Direction = -1
+   dummyElementQueue.Floor = 1
+	GotoQueue.PushBack(dummyElementQueue)
+   dummyElementQueue.Floor = 11
+	GotoQueue.PushBack(dummyElementQueue)
+   dummyElementQueue.Floor = 111
+	GotoQueue.PushBack(dummyElementQueue)
+   dummyElementQueue.Floor = 1111
+	GotoQueue.PushBack(dummyElementQueue)
+
 
 	var ServerTest server.ServerMsg
 	ServerTest.Cmd = server.CMD_ATTACH

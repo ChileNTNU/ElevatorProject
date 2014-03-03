@@ -1,0 +1,57 @@
+package driver  // where "driver" is the folder that contains io.go, io.c, io.h, channels.go, channels.c and driver.go
+/*
+#cgo LDFLAGS: -lcomedi -lm
+#cgo CFLAGS: -std=c99
+#include "elev.h"
+*/
+import "C"
+
+import (
+	"fmt"
+)
+
+
+func Main_driver(){
+	
+	if (C.elev_init() == 0){
+		fmt.Println("ERROR")
+	}
+	
+	C.elev_set_speed(300)
+	
+	for {
+      
+        
+        switch (C.elev_get_floor_sensor_signal()){
+        	case 0:
+        		C.elev_set_floor_indicator(0)
+        		C.elev_set_button_lamp(C.BUTTON_CALL_UP, 0, 1)
+        		C.elev_set_button_lamp(C.BUTTON_COMMAND, 0, 1)
+        		C.elev_set_speed(300)
+        	case 1:
+        	
+        	case 2:
+        	
+        	case 3:
+        		C.elev_set_speed(-300)
+        	default:        	
+        }
+
+        if (C.elev_get_stop_signal() == 1) {
+            C.elev_set_speed(0)
+            break;
+        }
+        
+        if(C.elev_get_button_signal(C.BUTTON_CALL_UP,2) == 1){
+        	C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, 2, 1)
+        	C.elev_set_button_lamp(C.BUTTON_CALL_UP, 2, 1)
+        	C.elev_set_button_lamp(C.BUTTON_COMMAND, 2, 1)
+        }
+        
+        
+        if(C.elev_get_obstruction_signal() == 1){
+        	C.elev_set_door_open_lamp(1)
+        	C.elev_set_stop_lamp(1)
+        }
+    }	
+}

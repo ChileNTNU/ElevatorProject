@@ -40,7 +40,7 @@ type ServerMsg struct{
     ChanQueue chan *list.List   //Channel for sending back queue
 }
 
-func Server(Chan_Redun <-chan ServerMsg, Chan_Test <-chan ServerMsg, Chan_Prueba <-chan ServerMsg){
+func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardware <-chan ServerMsg){
 
     var MsgRecv ServerMsg   
 
@@ -58,7 +58,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Test <-chan ServerMsg, Chan_Prueba
 
    //Dummy variable for extracting a value and sending it to the requester
    //The requester can be either HW moduel, Redundancy module or Decision module
-    var extractValue ElementQueue
+   var extractValue ElementQueue
    var firstElement ElementQueue
 
    //Dummy variable for actual pos  
@@ -68,11 +68,11 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Test <-chan ServerMsg, Chan_Prueba
     for{
         select{         //Select from whom is the message comming
             case MsgRecv = <- Chan_Redun:                               
-                //fmt.Println("Message Redundancy:",MsgRecv)
-            case MsgRecv = <- Chan_Test:                                
-                //fmt.Println("Message Test:",MsgRecv)          
-            case MsgRecv = <- Chan_Prueba:
-                //fmt.Println("Message Prueba:",MsgRecv)
+                fmt.Println("Message Redundancy:",MsgRecv)
+            case MsgRecv = <- Chan_Dec:                                
+                fmt.Println("Message Decision:",MsgRecv)          
+            case MsgRecv = <- Chan_Hardware:
+                fmt.Println("Message Hardware:",MsgRecv)
         }
 
         switch MsgRecv.QueueID{

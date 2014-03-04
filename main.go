@@ -8,6 +8,8 @@ import(
     "./Network"
     "./Server"
     "./Redundancy"
+    "./Decision"
+    "./Hardware"
 )
 
 
@@ -20,8 +22,8 @@ func main(){
 
     // Channels for Server
     Chan_Redun_Server := make(chan server.ServerMsg)
-//  Chan_Dec_Server := make(chan server.ServerMsg)
-//  Chan_HW_Server := make(chan server.ServerMsg)
+  	Chan_Dec_Server := make(chan server.ServerMsg)
+  	Chan_HW_Server := make(chan server.ServerMsg)
 
     // Channel for Hardware
     Chan_Redun_Hardware := make(chan *list.List)
@@ -55,7 +57,9 @@ func main(){
     fmt.Println("Hello!")
     go redundancy.Redundancy(Chan_Redun_Server,Chan_Redun_Network,Chan_Network_Redun,Chan_Redun_Hardware)
     go network.NetworkManager(Chan_Network_Decision,Chan_Decision_Network,Chan_Network_Redun,Chan_Redun_Network)
-    go server.Server(Chan_Redun_Server,nil,nil)
+    go server.Server(Chan_Redun_Server,Chan_Dec_Server,Chan_HW_Server)
+	go decision.DecisionManager(Chan_Dec_Server)
+	go hardware.HardwareManager(Chan_HW_Server,Chan_Redun_Hardware)
 
     // Network messages
     Chan_Redun_Network <- testmsg

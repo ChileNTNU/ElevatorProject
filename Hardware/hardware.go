@@ -203,6 +203,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                 }
                     
                 //Read all move queue and take out the value of the floor.
+                /*
                 MsgToServer.Cmd = server.CMD_READ_ALL
                 MsgToServer.QueueID = server.ID_MOVEQUEUE
                 MsgToServer.ChanVal = nil
@@ -226,6 +227,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                 }else{
                     fmt.Println("ERROR Element not in MoveQueue")
                 }
+                */
             }
         }
     }   
@@ -240,11 +242,14 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
     dummyElement.Direction = -1
     dummyElement.Floor = -1
 
+    //Each time an inside button is pressed switch its light
+    //This light will be switched off when the elevator gets to that floor
     for {
         if(C.elev_get_button_signal(C.BUTTON_CALL_UP,0) == 1 ){     
             dummyElement.Floor = 0
             dummyElement.Direction = server.UP
         }else if(C.elev_get_button_signal(C.BUTTON_COMMAND,0) == 1){
+            C.elev_set_button_lamp(C.BUTTON_COMMAND, 0, 1)
             dummyElement.Floor = 0
             dummyElement.Direction = server.NONE
         }else if (C.elev_get_button_signal(C.BUTTON_CALL_UP,1) == 1){
@@ -254,6 +259,7 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
             dummyElement.Floor = 1
             dummyElement.Direction = server.DOWN
         }else if(C.elev_get_button_signal(C.BUTTON_COMMAND,1) == 1){
+            C.elev_set_button_lamp(C.BUTTON_COMMAND, 1, 1)
             dummyElement.Floor = 1
             dummyElement.Direction = server.NONE
         }else if (C.elev_get_button_signal(C.BUTTON_CALL_UP,2) == 1){
@@ -263,18 +269,21 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
             dummyElement.Floor = 2
             dummyElement.Direction = server.DOWN
         }else if(C.elev_get_button_signal(C.BUTTON_COMMAND,2) == 1){
+            C.elev_set_button_lamp(C.BUTTON_COMMAND, 2, 1)
             dummyElement.Floor = 2
             dummyElement.Direction = server.NONE
         }else if(C.elev_get_button_signal(C.BUTTON_CALL_DOWN,3) == 1){
             dummyElement.Floor = 3
             dummyElement.Direction = server.DOWN
         }else if(C.elev_get_button_signal(C.BUTTON_COMMAND,3) == 1){
+            C.elev_set_button_lamp(C.BUTTON_COMMAND, 3, 1)
             dummyElement.Floor = 3
             dummyElement.Direction = server.NONE
         }else{
             dummyElement.Floor = -1
         }
       
+        //Add a new element to the ReqQueue for further processing by the Decision module
         if (dummyElement.Floor != -1){
             MsgToServer.Cmd = server.CMD_ADD
             MsgToServer.QueueID = server.ID_REQQUEUE
@@ -283,7 +292,21 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
             MsgToServer.ChanQueue = nil
           
             ChanToServer <- MsgToServer
-        }      
+        }
+
+        //Add a new element to the MoveQueue if the button pressed was a command button
+        /*
+        if ((dummyElement.Floor != -1) && (dummyElement.Direction == server.NONE){
+            MsgToServer.Cmd = server.CMD_ADD
+            MsgToServer.QueueID = server.ID_MOVEQUEUE
+            MsgToServer.Value = dummyElement
+            MsgToServer.ChanVal = nil
+            MsgToServer.ChanQueue = nil
+          
+            ChanToServer <- MsgToServer
+        }
+        */               
+
         time.Sleep(100*time.Millisecond)
     }
 }
@@ -306,10 +329,12 @@ func switchLights(ChanFromRedundancy <-chan *list.List){
                 //First switch off all the button lamps
                 for i := 0; i < redundancy.FLOORS; i++{
                     C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, i, 0)
-                C.elev_set_button_lamp(C.BUTTON_CALL_UP, i, 0)
+                    C.elev_set_button_lamp(C.BUTTON_CALL_UP, i, 0)
                 }
-               
-               //Second, switch on the lamps from the elements on the Global Lights queue
+                
+                //Second, switch on the lamps from the elements on the Global Lights queue
+                //If you have received a queue on which the first element is NIL then
+                //Do not switch any light
                 for e := GlobalLights.Front(); e != nil; e = e.Next(){      
                     if (e.Value.(ElementQueue).Direction == server.UP){
                         C.elev_set_button_lamp(C.BUTTON_CALL_UP, e.Value.(ElementQueue).Floor, 1)
@@ -321,8 +346,10 @@ func switchLights(ChanFromRedundancy <-chan *list.List){
                 //Read the actual sensor and turn on the floor indicator
                 actual_sensor = int (C.elev_get_floor_sensor_signal())
                 if (actual_sensor != -1){
-                    C.elev_set_floor_indicator(C.int(actual_sensor))   //Switch on the lamp indicator
-                    C.elev_set_button_lamp(C.BUTTON_COMMAND, C.int(actual_sensor), 0)                           
+                    //Switch on the lamp indicator
+                    C.elev_set_floor_indicator(C.int(actual_sensor))
+                    //Switch off the inside button light
+                    C.elev_set_button_lamp(C.BUTTON_COMMAND, C.int(actual_sensor), 0)                    
                 }
         }
     }

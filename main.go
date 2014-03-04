@@ -76,7 +76,7 @@ func main(){
     Chan_Decision_Network <- testmsg
 
     // Message to server
-    Chan_Redun_Server <- ServerTest
+//    Chan_Redun_Server <- ServerTest
 
     for{
         fmt.Println("Doing something else")

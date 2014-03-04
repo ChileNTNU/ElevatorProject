@@ -21,8 +21,8 @@ const START     = 2
 const CMD       = 3
 const ACK       = 4
 
-const DEBUG = true
-const LAYOUT_TIME = "2 Jan 2006 15:04:05.000 "
+const DEBUG = false
+const LAYOUT_TIME = "15:04:05.000 "
 
 type Message struct{
     IDsender string

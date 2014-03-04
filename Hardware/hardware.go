@@ -14,15 +14,14 @@ import (
     "time"
 )
 
-const UP = 300
-const DOWN = -300
+//const LAYOUT_TIME = "2 Jan 2006 15:04:05.000 "
+
+const UP = 75
+const DOWN = -75
 const NOT_MOVE = 0
 
 func HardwareManager(ChanToServer chan<- server.ServerMsg, ChanFromRedundancy <-chan *list.List){
-      
-    var GlobalLights *list.List
-    GlobalLights = list.New()   
-    
+          
     if (C.elev_init() == 0){
         fmt.Println("Hardware ERROR")
     }   
@@ -32,7 +31,7 @@ func HardwareManager(ChanToServer chan<- server.ServerMsg, ChanFromRedundancy <-
     go switchLights(ChanFromRedundancy)
      
     for{
-        time.Sleep(50*time.Millisecond)
+        time.Sleep(5000*time.Millisecond)
     }
 }
 
@@ -40,13 +39,14 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
 
     var MsgToServer server.ServerMsg
     ChanToServer_Hardware_ElementQueue := make(chan server.ElementQueue)
-    ChanToServer_Hardware_Queue := make(chan *list.List)
+    //This channel is commented because it is used when we read the MoveQueue from the server
+    //ChanToServer_Hardware_Queue := make(chan *list.List)
     
     var dummyElement server.ElementQueue
     dummyElement.Direction = -1
     dummyElement.Floor = -1
-    
-    var ModifiedMoveQueue *list.List
+    //This queue is commented because it is used when we read the MoveQueue from the server    
+    //var ModifiedMoveQueue *list.List
 
     timeout := time.Tick(100*time.Millisecond)
     var target_floor int
@@ -60,10 +60,8 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
         select{
             case <- timeout:
                 //First thing to do. Check you are on a proper floor and if not, then move until you get to one             
-                actual_sensor = int (C.elev_get_floor_sensor_signal())
-//              fmt.Println("Floor read: ",C.elev_get_floor_sensor_signal())
-                
-                fmt.Println("Start :", actual_sensor)
+                actual_sensor = int (C.elev_get_floor_sensor_signal())                
+                //fmt.Println("HW_ Start:", actual_sensor)
                 
                 if(actual_sensor == -1){
                     //Read actual position from Server
@@ -83,34 +81,37 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                         case 1,2,3:
                             direction_speed = UP
                         default:
-                            fmt.Println("Actual position read from server INVALID")
+                            fmt.Println("HW_ Actual position read from server INVALID")
                             direction_speed = NOT_MOVE
                     }
                 
                     i := 0
-                    fmt.Println("BBBBB")
+                    //fmt.Println("BBBBB")
                    //FOR with a constant read of the sensor, and sleep for small interval sleep a little
                     for(actual_sensor == -1 && i < 500){
                         C.elev_set_speed(C.int(direction_speed))
-                        time.Sleep(200*time.Millisecond)
+                        time.Sleep(100*time.Millisecond)
                         actual_sensor = int (C.elev_get_floor_sensor_signal())
                         //Write the actual position on every sensor reading
                         if (i == 300){
-                            if (direction == UP){
-                                direction = DOWN
+                            if (direction_speed == UP){
+                                direction_speed = DOWN
                             }else{
-                                direction = UP
+                                direction_speed = UP
                             }
                         }
                         i++;
-                        fmt.Println("Look: ",actual_sensor, direction_speed, ActualPos)                 
+                        fmt.Println("HW_ Look: ",actual_sensor, direction_speed, ActualPos)
                     }
                     //If the counter has been excedded                  
                     if(i == 500){
-                        fmt.Println("EROOOOORRRR no floor reached")
+                        fmt.Println("HW_ EROOOOORRRR no floor reached")
                     }else{
                         //When a floor has been reached, first stop the elevator
-                        C.elev_set_speed(NOT_MOVE)
+						//Do some small reverse movement to make the elevator stop sharply
+                        C.elev_set_speed(C.int((-1)*direction_speed))
+                        time.Sleep(30*time.Millisecond)
+                        C.elev_set_speed(NOT_MOVE)                        
                         //Afterwards write the value back to the server
                         dummyElement.Floor = actual_sensor
                         dummyElement.Direction = server.NONE
@@ -139,7 +140,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
 
                 if(target_floor != -1){
                 
-                fmt.Println("Target: ", target_floor)
+                fmt.Println("HW_ Target: ", target_floor)
                 switch (actual_sensor){
                     case 0:
                         direction_speed = UP
@@ -152,10 +153,10 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                     case 3:
                         direction_speed = DOWN
                     default:
-                        fmt.Println("Do not move")
+                        fmt.Println("HW_ Do not move")
                         direction_speed = NOT_MOVE
                 }
-                fmt.Println("EEEE")
+                //fmt.Println("EEEE")
                 C.elev_set_speed(C.int(direction_speed))
                 for (actual_sensor != target_floor){
                     time.Sleep(200*time.Millisecond)
@@ -185,11 +186,15 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                          
                         ChanToServer <- MsgToServer
                     }
-                    fmt.Println("New: ",actual_sensor, direction, target_floor)
+                    fmt.Println("HW_ New: ",actual_sensor, direction_speed, target_floor)
                 }                   
                 //Here the elevator has arrived to the target floor
-                fmt.Println("FFFF")
+                //fmt.Println("FFFF")
+ 				//Do some small reverse movement to make the elevator stop sharply
+                C.elev_set_speed(C.int((-1)*direction_speed))                
+                time.Sleep(30*time.Millisecond)
                 C.elev_set_speed(NOT_MOVE)
+
                 //When you get to the floor, extract the first element Goto queue
                 MsgToServer.Cmd = server.CMD_EXTRACT
                 MsgToServer.QueueID = server.ID_GOTOQUEUE
@@ -199,7 +204,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                 ChanToServer <- MsgToServer
                 dummyElement =<- ChanToServer_Hardware_ElementQueue
                 if(dummyElement.Floor != target_floor){
-                    fmt.Println("ERROR Gotoqueue first element not equal to target floor")
+                    fmt.Println("HW_ ERROR Gotoqueue first element not equal to target floor")
                 }
                     
                 //Read all move queue and take out the value of the floor.
@@ -214,7 +219,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
 
                 dummyElement = partOfList (ModifiedMoveQueue, target_floor)
                     
-                if(dummyElement != nil){
+                if(dummyElement.Floor != -1){
                     ModifiedMoveQueue.Remove(dummyElement)
                    
                     MsgToServer.Cmd = server.CMD_REPLACE_ALL
@@ -236,7 +241,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
 func readButtons (ChanToServer chan<- server.ServerMsg){
 
     var MsgToServer server.ServerMsg
-    ChanToServer_Hardware_ElementQueue := make(chan server.ElementQueue)
+    var actual_sensor int
     
     var dummyElement server.ElementQueue
     dummyElement.Direction = -1
@@ -282,9 +287,9 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
         }else{
             dummyElement.Floor = -1
         }
-      
+        actual_sensor = int (C.elev_get_floor_sensor_signal())
         //Add a new element to the ReqQueue for further processing by the Decision module
-        if (dummyElement.Floor != -1){
+        if (dummyElement.Floor != -1 && actual_sensor != dummyElement.Floor){
             MsgToServer.Cmd = server.CMD_ADD
             MsgToServer.QueueID = server.ID_REQQUEUE
             MsgToServer.Value = dummyElement
@@ -323,23 +328,28 @@ func switchLights(ChanFromRedundancy <-chan *list.List){
     for{
         select{
             case GlobalLights =<- ChanFromRedundancy:
+            	//fmt.Println("HW_ Turning button lights ON")
                 //Every time that you receive a message from the Redundancy module, then...
-                //NB The redundancy module sends us a message every 200ms
-               
+                //NB The redundancy module sends us a message every 200ms               
                 //First switch off all the button lamps
+                fmt.Println("HW_ light routine")
                 for i := 0; i < redundancy.FLOORS; i++{
-                    C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, i, 0)
-                    C.elev_set_button_lamp(C.BUTTON_CALL_UP, i, 0)
+                    if (i != 0){
+                    	C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, C.int(i), 0)
+                    }
+                    if (i != (redundancy.FLOORS -1)){
+                    	C.elev_set_button_lamp(C.BUTTON_CALL_UP, C.int(i), 0)                    
+                    }                    
                 }
                 
                 //Second, switch on the lamps from the elements on the Global Lights queue
                 //If you have received a queue on which the first element is NIL then
                 //Do not switch any light
                 for e := GlobalLights.Front(); e != nil; e = e.Next(){      
-                    if (e.Value.(ElementQueue).Direction == server.UP){
-                        C.elev_set_button_lamp(C.BUTTON_CALL_UP, e.Value.(ElementQueue).Floor, 1)
-                    }else if (e.Value.(ElementQueue).Direction == server.DOWN){
-                        C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, e.Value.(ElementQueue).Floor, 1)
+                    if (e.Value.(server.ElementQueue).Direction == server.UP){
+                        C.elev_set_button_lamp(C.BUTTON_CALL_UP, C.int(e.Value.(server.ElementQueue).Floor), 1)
+                    }else if (e.Value.(server.ElementQueue).Direction == server.DOWN){
+                        C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, C.int(e.Value.(server.ElementQueue).Floor), 1)
                     }
                 }   
 
@@ -356,12 +366,16 @@ func switchLights(ChanFromRedundancy <-chan *list.List){
 }
 
 func partOfList(List *list.List, floorRemove int) server.ElementQueue {
+	var dummyElement server.ElementQueue
+	dummyElement.Floor = -1
+	dummyElement.Direction = -1
+	
     for e := List.Front(); e != nil; e = e.Next(){
-        if e.Value.(ElementQueue).Floor == floorRemove {
-            return e
+        if e.Value.(server.ElementQueue).Floor == floorRemove {
+            return e.Value.(server.ElementQueue)
         }
     }
-    return nil
+    return dummyElement
 }
 
 

@@ -54,7 +54,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
     GotoQueue = list.New()
     MoveQueue = list.New()
     ReqQueue = list.New()
-    ActualPos = 1   
+    ActualPos = 0   
 
    //Dummy variable for extracting a value and sending it to the requester
    //The requester can be either HW moduel, Redundancy module or Decision module
@@ -68,11 +68,11 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
     for{
         select{         //Select from whom is the message comming
             case MsgRecv = <- Chan_Redun:                               
-                fmt.Println("Message Redundancy:",MsgRecv)
+                //fmt.Println("Message Redundancy:",MsgRecv)
             case MsgRecv = <- Chan_Dec:                                
-                fmt.Println("Message Decision:",MsgRecv)          
+                //fmt.Println("Message Decision:",MsgRecv)          
             case MsgRecv = <- Chan_Hardware:
-                fmt.Println("Message Hardware:",MsgRecv)
+                //fmt.Println("Message Hardware:",MsgRecv)
         }
 
         switch MsgRecv.QueueID{

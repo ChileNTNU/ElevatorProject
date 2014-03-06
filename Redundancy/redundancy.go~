@@ -12,7 +12,7 @@ import(
 TODO
 - Channel to Dec
 */
-const DEBUG = true
+const DEBUG = false
 const LAYOUT_TIME = "15:04:05.000 "
 
 //EAGM Change timeout to 1000ms. Debug 2000ms
@@ -27,7 +27,11 @@ type Participant struct{
     Timestamp time.Time
 }
 
-func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- network.Message, ChanFromNetwork <-chan network.Message, ChanToHardware chan<- *list.List){
+type TableReqMessage struct {
+    ChanQueue chan *list.List   //Channel for sending back participants table
+}
+
+func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- network.Message, ChanFromNetwork <-chan network.Message, ChanToHardware chan<- *list.List, ChanFromDec chan<- TableReqMessage){
 
     var NewParticipant Participant
     NewParticipant.IPsender = "1.2.3.4"
@@ -42,6 +46,8 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
     var TempElement *list.Element
     var TempQueue *list.List
     TempQueue = list.New()
+    
+    var TableReq TableReqMessage
     
     //New list which will contain all the buttons light
     var GlobalLights *list.List
@@ -72,6 +78,10 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 }
                 ParticipantsList.PushBack(NewParticipant)
                 
+            //If you receive a message from the Decision module, then send him the participants table
+            case TableReq =<- ChanFromDec:
+            	TableReq.ChanQueue <- ParticipantsList
+            
             case <- timeout:
                 // go through list and check if someone timed out
                 for e := ParticipantsList.Front(); e != nil; e = e.Next(){
@@ -93,7 +103,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                         ServerMsg.NewQueue = TempQueue
                         ServerMsg.ChanVal = nil
                         ServerMsg.ChanQueue = nil
-                       	if(DEBUG){fmt.Println("RD_ Timeout:",ServerMsg)}
+                       	if(DEBUG){fmt.Println("RD_ ************TIMEOUT************:",ServerMsg)}
 
                         ChanToServer <- ServerMsg
 

@@ -68,11 +68,11 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
     for{
         select{         //Select from whom is the message comming
             case MsgRecv = <- Chan_Redun:                               
-                fmt.Println("Message Redundancy:",MsgRecv)
+                //fmt.Println("Message Redundancy:",MsgRecv)
             case MsgRecv = <- Chan_Dec:                                
-                fmt.Println("Message Decision:",MsgRecv)          
+                //fmt.Println("Message Decision:",MsgRecv)          
             case MsgRecv = <- Chan_Hardware:
-                fmt.Println("Message Hardware:",MsgRecv)
+                //fmt.Println("Message Hardware:",MsgRecv)
         }
 
         switch MsgRecv.QueueID{
@@ -84,7 +84,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                 //fmt.Println("Movequeue selected")
             case ID_REQQUEUE:
                 TargetQueue = ReqQueue
-                fmt.Println("Reqqueue selected")
+                //fmt.Println("Reqqueue selected")
             case ID_ACTUAL_POS:             
                 TargetQueue = nil
                 //fmt.Println("Actual selected")

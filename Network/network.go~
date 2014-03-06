@@ -40,7 +40,7 @@ var LocalIP string
 
 func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,ChanToRedun chan Message,ChanFromRedun chan Message,){
 
-    fmt.Println("NET_ NetworkManager started")
+    fmt.Println("NET_ Network Manager started")
 
 // UPD status
   //Address from where we are going to listen for others status messages

@@ -98,11 +98,11 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                    if !partOfList(TargetQueue, MsgRecv.Value){
                   TargetQueue.PushBack(MsgRecv.Value)
                         if DEBUG{
-                        fmt.Println("Value added")  
+                        fmt.Println("SR_ Value added")  
                         }
                    }else{
                        if DEBUG{
-                           fmt.Println("Value already on list") 
+                           fmt.Println("SR_ Value already on list") 
                        }
                     }
                 }else{
@@ -115,13 +115,13 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                         // type assertions for converting that value into int
                         extractValue = TargetQueue.Remove(TargetQueue.Front()).(ElementQueue)
                         if DEBUG{
-                            fmt.Println("Value extr:", extractValue)        
+                            fmt.Println("SR_ Value extr:", extractValue)        
                         }                       
                     }else{
                         extractValue.Floor = -1
                         extractValue.Direction = -1
                         if DEBUG {
-                            fmt.Println("CMD_EXTRACT: Empty queue")                     
+                            fmt.Println("SR_ CMD_EXTRACT: Empty queue")                     
                         }                       
                     }
                     MsgRecv.ChanVal <- extractValue
@@ -133,13 +133,13 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                     if TargetQueue.Front() != nil{
                         firstElement = TargetQueue.Front().Value.(ElementQueue)
                         if DEBUG{
-                            fmt.Println("Value read:", firstElement)        
+                            fmt.Println("SR_ Value read:", firstElement)        
                         }                       
                     }else{
                         firstElement.Floor = -1
                         firstElement.Direction = -1
                         if DEBUG {
-                            fmt.Println("CMD_READ_FIRST: Empty queue")                      
+                            fmt.Println("SR_ CMD_READ_FIRST: Empty queue")                      
                         }                       
                     }
                     MsgRecv.ChanVal <- firstElement
@@ -173,11 +173,11 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
         
         if DEBUG{
             printList(GotoQueue)
-            fmt.Println("--------")
+            fmt.Println("SR_ --------")
             printList(MoveQueue)
-            fmt.Println("--------")
+            fmt.Println("SR_ --------")
             printList(ReqQueue)
-            fmt.Println("Actual:", ActualPos)
+            fmt.Println("SR_ Actual:", ActualPos)
         }
     }   
 }

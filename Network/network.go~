@@ -15,14 +15,14 @@ const PORT_STATUS = ":20019"
 const PORT_CMD  = ":20018"
 //Broadcast lab 129.241.187.255
 
-// Do not use '0' in the Message struct
+// Do not use '0' in the Message struct for avoiding problems with the decoder
 const STATUS    = 1
 const START     = 2
 const CMD       = 3
 const ACK       = 4
 
 const DEBUG = false
-const LAYOUT_TIME = "2 Jan 2006 15:04:05.000 "
+const LAYOUT_TIME = "15:04:05.000"
 
 type Message struct{
     IDsender string
@@ -40,7 +40,7 @@ var LocalIP string
 
 func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,ChanToRedun chan Message,ChanFromRedun chan Message,){
 
-    fmt.Println("NetworkManager started")
+    fmt.Println("NET_ NetworkManager started")
 
 // UPD status
   //Address from where we are going to listen for others status messages
@@ -48,7 +48,7 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
   check(err)
 
   //Address to where we are going to send our status(BROADCAST)
-    RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","78.91.6.252"+PORT_STATUS)
+    RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","129.241.187.255"+PORT_STATUS)
     check(err)
 
     // Make connection for sending
@@ -92,19 +92,25 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 func ListenerStatus(conn *net.UDPConn,Channel chan<- Message){
     var MsgRecv Message
     for {
+            //Reset the message because the decoder can not handle values ZERO
+            MsgRecv = Message {}
             //Create decoder
             dec := gob.NewDecoder(conn)
             //Receive message on connection
             err := dec.Decode(&MsgRecv)
             check(err)
+			
+			//Check if the message you recevied it from you
+			if(MsgRecv.IDsender == LocalIP){
+				MsgRecv.IDsender = "Local"
+			}
+			
+            if(DEBUG){fmt.Println("NET_ RecvStatus:",MsgRecv)}
 
-            if(DEBUG){
-                fmt.Println("RecvStatus:",MsgRecv)
-            }
-
-            // Discard message if not status
-            if(MsgRecv.MsgType == STATUS && MsgRecv.IDsender != LocalIP && err == nil){
-                Channel <-MsgRecv
+            //Discard message if not status
+            //Even if it is your local IP send it to the redundancy so it adds it to the participants table
+            if(MsgRecv.MsgType == STATUS && err == nil){
+                Channel <-MsgRecv             
             }
     }
 }
@@ -112,13 +118,15 @@ func ListenerStatus(conn *net.UDPConn,Channel chan<- Message){
 func ListenerCmd(conn *net.UDPConn,Channel chan<- Message){
     var MsgRecv Message
     for {
+            //Reset the message because the decoder can not handle values ZERO
+            MsgRecv = Message {}    
             //Create decoder
             dec := gob.NewDecoder(conn)
             //Receive message on connection
             err := dec.Decode(&MsgRecv)
             check(err)
 
-            if(DEBUG){ fmt.Println("RecvCmd:",MsgRecv) }
+            if(DEBUG){ fmt.Println("NET_ RecvCmd:",MsgRecv) }
 
             // Discard message if not command related
             if((MsgRecv.MsgType == START || MsgRecv.MsgType == CMD || MsgRecv.MsgType == ACK) && err == nil){
@@ -141,9 +149,7 @@ func SenderStatus(ConnStatus *net.UDPConn, Channel <-chan Message){
             fmt.Println(err)
         }
         check(err)
-        if(DEBUG){
-            fmt.Println("StatusSent:",MsgSend)
-        }
+        if(DEBUG){fmt.Println("NET_ StatusSent:",MsgSend)}
     }
 }
 
@@ -169,9 +175,7 @@ func SenderCmd(Channel <-chan Message){
         //Close connection
         ConnCmd.Close()
 
-        if(DEBUG){
-            fmt.Println("CmdSent   :",MsgSend)
-        }
+        if(DEBUG){fmt.Println("NET_ CmdSent   :",MsgSend)}
     }
 }
 
@@ -179,7 +183,7 @@ func SenderCmd(Channel <-chan Message){
 func check(err error){
     if err != nil{
         fmt.Fprintf(os.Stderr,time.Now().Format(LAYOUT_TIME))
-        fmt.Fprintf(os.Stderr,"  Error: %s\n",err.Error())
+        fmt.Fprintf(os.Stderr,"NET_  Error: %s\n",err.Error())
     }
 }
 

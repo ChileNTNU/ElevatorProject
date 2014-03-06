@@ -14,16 +14,19 @@ import (
     "time"
 )
 
-//const LAYOUT_TIME = "2 Jan 2006 15:04:05.000 "
+const DEBUG = false
+//const LAYOUT_TIME = "15:04:05.000 "
 
 const UP = 75
 const DOWN = -75
 const NOT_MOVE = 0
 
 func HardwareManager(ChanToServer chan<- server.ServerMsg, ChanFromRedundancy <-chan *list.List){
-          
+
+    fmt.Println("HW_ Hardware Manager started!")          
+    
     if (C.elev_init() == 0){
-        fmt.Println("Hardware ERROR")
+        fmt.Println("HW_ Hardware ERROR")
     }   
      
     go gotoFloor(ChanToServer)
@@ -101,7 +104,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                             }
                         }
                         i++;
-                        fmt.Println("HW_ Look: ",actual_sensor, direction_speed, ActualPos)
+                        if (DEBUG){fmt.Println("HW_ Look: ",actual_sensor, direction_speed, ActualPos)}
                     }
                     //If the counter has been excedded                  
                     if(i == 500){
@@ -139,22 +142,22 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                 target_floor = dummyElement.Floor             
 
                 if(target_floor != -1){
-                
-                fmt.Println("HW_ Target: ", target_floor)
-                switch (actual_sensor){
-                    case 0:
-                        direction_speed = UP
-                    case 1,2:
-                        if (target_floor > actual_sensor){
-                            direction_speed = UP
-                        }else{
-                            direction_speed = DOWN
-                        }
-                    case 3:
-                        direction_speed = DOWN
-                    default:
-                        fmt.Println("HW_ Do not move")
-                        direction_speed = NOT_MOVE
+                	if (DEBUG){fmt.Println("HW_ Target: ", target_floor)}
+					    
+				    switch (actual_sensor){
+				        case 0:
+				            direction_speed = UP
+				        case 1,2:
+				            if (target_floor > actual_sensor){
+				                direction_speed = UP
+				            }else{
+				                direction_speed = DOWN
+				            }
+				        case 3:
+				            direction_speed = DOWN
+				        default:
+				            fmt.Println("HW_ Do not move")
+				            direction_speed = NOT_MOVE
                 }
                 //fmt.Println("EEEE")
                 C.elev_set_speed(C.int(direction_speed))
@@ -186,7 +189,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                          
                         ChanToServer <- MsgToServer
                     }
-                    fmt.Println("HW_ New: ",actual_sensor, direction_speed, target_floor)
+                    if(DEBUG){fmt.Println("HW_ New: ",actual_sensor, direction_speed, target_floor)}
                 }                   
                 //Here the elevator has arrived to the target floor
                 //fmt.Println("FFFF")
@@ -332,7 +335,7 @@ func switchLights(ChanFromRedundancy <-chan *list.List){
                 //Every time that you receive a message from the Redundancy module, then...
                 //NB The redundancy module sends us a message every 200ms               
                 //First switch off all the button lamps
-                fmt.Println("HW_ light routine")
+                if (DEBUG){fmt.Println("HW_ light routine")}
                 for i := 0; i < redundancy.FLOORS; i++{
                     if (i != 0){
                     	C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, C.int(i), 0)

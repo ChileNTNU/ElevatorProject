@@ -2,7 +2,7 @@ package main
 
 import(
     "fmt"
-//  "time"
+    "time"
 //  "os"
     "container/list"   //For using lists        
     "./Network"
@@ -79,10 +79,10 @@ func main(){
 //    Chan_Redun_Server <- ServerTest
 
     for{
-        fmt.Println("Doing something else")
-//      time.Sleep(3000 * time.Millisecond)
-        i := <-Chan_Network_Redun
-        fmt.Println("Main:",i)
+        fmt.Println("MN_ Doing something else")
+        time.Sleep(5000 * time.Millisecond)
+//        i := <-Chan_Network_Redun
+//        fmt.Println("Main:",i)
     }
 
 }

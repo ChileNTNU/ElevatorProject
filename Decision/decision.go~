@@ -20,7 +20,7 @@ func DecisionManager(ChanToServer chan<- server.ServerMsg){
 	var dummyElement server.ElementQueue
 	var MsgToServer server.ServerMsg
 
-	fmt.Println("DS_ Decision module started!")
+	fmt.Println("Decision module started!")
 	for {
 		// Extract first element from request queue 
 		MsgToServer.Cmd = server.CMD_EXTRACT

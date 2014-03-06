@@ -12,9 +12,11 @@ import(
 TODO
 - Channel to Dec
 */
+const DEBUG = true
 const LAYOUT_TIME = "15:04:05.000 "
 
-const TIMEOUT = 200*time.Millisecond
+//EAGM Change timeout to 1000ms. Debug 2000ms
+const TIMEOUT = 1000*time.Millisecond
 const FLOORS = 4
 
 type Participant struct{
@@ -36,67 +38,19 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 
     var NetworkMsg network.Message
     var ServerMsg server.ServerMsg
-    var TempElement *list.Element
     
-    ChanToServer_Redun_Queue := make(chan *list.List)
-
-    var OwnGotoQueue *list.List
-    OwnGotoQueue = list.New()
+    var TempElement *list.Element
+    var TempQueue *list.List
+    TempQueue = list.New()
     
     //New list which will contain all the buttons light
     var GlobalLights *list.List
     GlobalLights = list.New()
 
-    
-/*
-    var GotoQueue1 *list.List
-    var GotoQueue2 *list.List
-
-    GotoQueue1 = list.New()
-    GotoQueue2 = list.New()
-
-    GotoQueue1.PushBack(1)
-    GotoQueue1.PushBack(2)
-    GotoQueue1.PushBack(4)
-
-    GotoQueue2.PushBack(1)
-    GotoQueue2.PushBack(2)
-    GotoQueue2.PushBack(3)
-
-    var MoveQueue1 *list.List
-    var MoveQueue2 *list.List
-
-    MoveQueue1 = list.New()
-    MoveQueue2 = list.New()
-
-    MoveQueue1.PushBack(1)
-    MoveQueue1.PushBack(2)
-    MoveQueue1.PushBack(3)
-
-    MoveQueue2.PushBack(1)
-    MoveQueue2.PushBack(2)
-
-*/
-
-// buf := []int {1,2,3,4,5}
-// GotoQueue = arrayToList(buf,5)
-
-    fmt.Println("Redun")
+    fmt.Println("RD_ Redundancy Manager started")
 
     var ParticipantsList *list.List
     ParticipantsList = list.New()
-/*
-    NewParticipant.GotoQueue = GotoQueue1
-    NewParticipant.MoveQueue = MoveQueue1
-    ParticipantsList.PushBack(NewParticipant)
-
-    NewParticipant.IPsender = "6.6.6.6"
-    NewParticipant.GotoQueue = GotoQueue2
-    NewParticipant.MoveQueue = MoveQueue2
-    ParticipantsList.PushBack(NewParticipant)
-
-    printList(ParticipantsList)
-*/
 
     go SendStatus(ChanToNetwork,ChanToServer)
 
@@ -104,6 +58,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
     for{
         select{
             case NetworkMsg =<- ChanFromNetwork:
+            	if(DEBUG){fmt.Println("RD_ GOT MSG FROM NETWORK")}
             	//Add other elevator on the system to the participants table
                 NewParticipant.IPsender = NetworkMsg.IDsender
                 NewParticipant.GotoQueue = arrayToList(NetworkMsg.GotoQueue,NetworkMsg.SizeGotoQueue)
@@ -117,45 +72,28 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 }
                 ParticipantsList.PushBack(NewParticipant)
                 
-                /*
-                //Add yourself to the participants table for the decision of the global lights
-                //Read your own GotoQueue
-                ServerMsg.Cmd = server.CMD_READ_ALL
-                ServerMsg.QueueID = server.ID_GOTOQUEUE
-                ServerMsg.ChanVal = nil
-                ServerMsg.ChanQueue = ChanToServer_Redun_Queue
-               
-                ChanToServer <- ServerMsg
-                OwnGotoQueue =<- ChanToServer_Redun_Queue
-                
-                NewParticipant.IPsender = "Local"
-                NewParticipant.GotoQueue = OwnGotoQueue
-                NewParticipant.MoveQueue = nil
-                NewParticipant.ActualPos = 0
-                NewParticipant.Timestamp = time.Now()
-
-                TempElement = partOfParticipantList(ParticipantsList,NewParticipant.IPsender)
-                if TempElement != nil{
-                    ParticipantsList.Remove(TempElement)
-                }
-                ParticipantsList.PushBack(NewParticipant)
-                
-                printList(ParticipantsList)
-				*/
             case <- timeout:
                 // go through list and check if someone timed out
-
                 for e := ParticipantsList.Front(); e != nil; e = e.Next(){
                     old_timestamp := e.Value.(Participant).Timestamp
                     //if no message for TIMEOUT remove participant and
                     // add its GotoQueue to own RequestQueue
                     if time.Now().Sub(old_timestamp) > TIMEOUT {
+
+						//Look for all the element which are not local to the other elevators
+						for e := e.Value.(Participant).GotoQueue.Front(); e != nil; e = e.Next(){
+							if e.Value.(server.ElementQueue).Direction != server.NONE {
+								TempQueue.PushBack(e.Value.(server.ElementQueue))
+							}
+						}
+						
                         ServerMsg.Cmd = server.CMD_ATTACH
                         ServerMsg.QueueID = server.ID_REQQUEUE
                         //ServerMsg.Value = 0  //It is not needed the actual position for attaching to the reqQueue
-                        ServerMsg.NewQueue = e.Value.(Participant).GotoQueue
+                        ServerMsg.NewQueue = TempQueue
                         ServerMsg.ChanVal = nil
                         ServerMsg.ChanQueue = nil
+                       	if(DEBUG){fmt.Println("RD_ ************TIMEOUT************:",ServerMsg)}
 
                         ChanToServer <- ServerMsg
 
@@ -167,31 +105,12 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 //Reset list for top buttons lights
 				//fmt.Println("RD_ Init global lights")
                 GlobalLights.Init()
-
-                //Add yourself to the participants table for the decision of the global lights
-                //Read your own GotoQueue
-                ServerMsg.Cmd = server.CMD_READ_ALL
-                ServerMsg.QueueID = server.ID_GOTOQUEUE
-                ServerMsg.ChanVal = nil
-                ServerMsg.ChanQueue = ChanToServer_Redun_Queue
-               
-                ChanToServer <- ServerMsg
-                OwnGotoQueue =<- ChanToServer_Redun_Queue
                 
-                NewParticipant.IPsender = "Local"
-                NewParticipant.GotoQueue = OwnGotoQueue
-                NewParticipant.MoveQueue = nil
-                NewParticipant.ActualPos = 0
-                NewParticipant.Timestamp = time.Now()
-
-                TempElement = partOfParticipantList(ParticipantsList,NewParticipant.IPsender)
-                if TempElement != nil{
-                    ParticipantsList.Remove(TempElement)
-                }
-                ParticipantsList.PushBack(NewParticipant)
-                
-                printParticipantsList(ParticipantsList)
-				fmt.Println("RD_ -----------")
+                if(DEBUG){
+	   				fmt.Println("RD_ ----------- Participants list")
+		            printParticipantsList(ParticipantsList)
+					fmt.Println("RD_ ----------- Global Lights")
+				}
 
                 //Set according lights if floor is in GotoQueue
                 //Now we have to look on all the GotoQueues of all participants
@@ -208,7 +127,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 }
 
                 // Tell HW module which lights to turn on/off
-                printList(GlobalLights)
+                if(DEBUG){printList(GlobalLights)}
                 ChanToHardware <- GlobalLights
         }
     }
@@ -291,7 +210,8 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
 
                 MsgToNetwork.ActualPos = ActualPos
 
-          		time.Sleep(1000*time.Millisecond)
+				//EAGM Change sleep time to 50ms. Debug 1000ms
+          		time.Sleep(50*time.Millisecond)
         }
     }
 }
@@ -320,7 +240,6 @@ func arrayToList(array [] server.ElementQueue, size int) *list.List {
 }
 
 func partOfParticipantList(List *list.List, IP string) *list.Element {
-
     for e := List.Front(); e != nil; e = e.Next(){
         if e.Value.(Participant).IPsender == IP {
             return e
@@ -336,6 +255,7 @@ func printList(listToPrint *list.List){
     }  
     fmt.Println("")
 }
+
 
 func printListNobreak(listToPrint *list.List){      
 	if (listToPrint != nil){

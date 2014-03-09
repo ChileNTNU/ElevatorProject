@@ -20,6 +20,7 @@ const STATUS    = 1
 const START     = 2
 const CMD       = 3
 const ACK       = 4
+const LAST_ACK  = 5
 
 const DEBUG = false
 const LAYOUT_TIME = "15:04:05.000"
@@ -129,7 +130,7 @@ func ListenerCmd(conn *net.UDPConn,Channel chan<- Message){
             if(DEBUG){ fmt.Println("NET_ RecvCmd:",MsgRecv) }
 
             // Discard message if not command related
-            if((MsgRecv.MsgType == START || MsgRecv.MsgType == CMD || MsgRecv.MsgType == ACK) && err == nil){
+            if((MsgRecv.MsgType == START || MsgRecv.MsgType == CMD || MsgRecv.MsgType == ACK || MsgRecv.MsgType == LAST_ACK) && err == nil){
                 Channel <-MsgRecv
             }
     }

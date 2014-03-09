@@ -4,8 +4,8 @@ import(
     "fmt"
     "net"
     "os"
-     "encoding/gob"
-     "strings"
+    "encoding/gob"
+    "strings"
     "time"    //This file is for the sleep time
     "runtime" //Used for printing the line on the console
     ".././Server"  //Library for defining ElementQueue

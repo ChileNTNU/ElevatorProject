@@ -27,6 +27,9 @@ func main(){
 
     // Channel for Hardware
     Chan_Redun_Hardware := make(chan *list.List)
+    
+    // Channel for Redundancy
+    Chan_Decision_Redun := make (chan redundancy.TableReqMessage)
 
     var testmsg network.Message
     testmsg.IDsender = "myIP"
@@ -55,7 +58,7 @@ func main(){
 
 
     fmt.Println("Hello!")
-    go redundancy.Redundancy(Chan_Redun_Server,Chan_Redun_Network,Chan_Network_Redun,Chan_Redun_Hardware)
+    go redundancy.Redundancy(Chan_Redun_Server,Chan_Redun_Network,Chan_Network_Redun,Chan_Redun_Hardware, Chan_Decision_Redun)
     go network.NetworkManager(Chan_Network_Decision,Chan_Decision_Network,Chan_Network_Redun,Chan_Redun_Network)
     go server.Server(Chan_Redun_Server,Chan_Dec_Server,Chan_HW_Server)
 	go decision.DecisionManager(Chan_Dec_Server)
@@ -80,7 +83,7 @@ func main(){
 
     for{
         fmt.Println("MN_ Doing something else")
-        time.Sleep(3000 * time.Millisecond)
+        time.Sleep(5000 * time.Millisecond)
 //        i := <-Chan_Network_Redun
 //        fmt.Println("Main:",i)
     }

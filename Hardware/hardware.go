@@ -197,7 +197,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                 C.elev_set_speed(C.int((-1)*direction_speed))                
                 time.Sleep(30*time.Millisecond)
                 C.elev_set_speed(NOT_MOVE)
-
+                
                 //When you get to the floor, extract the first element Goto queue
                 MsgToServer.Cmd = server.CMD_EXTRACT
                 MsgToServer.QueueID = server.ID_GOTOQUEUE
@@ -207,9 +207,15 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                 ChanToServer <- MsgToServer
                 dummyElement =<- ChanToServer_Hardware_ElementQueue
                 if(dummyElement.Floor != target_floor){
-                    fmt.Println("HW_ ERROR Gotoqueue first element not equal to target floor")
+                    fmt.Println("HW_ ERROR Gotoqueue first element not equal to target floor but had a value before")
                 }
-                    
+                
+                //Stops a little and switch on the light of door open, and the witch off the light of door closed
+                C.elev_set_door_open_lamp(C.int(1))
+                time.Sleep(2000*time.Millisecond)
+                C.elev_set_door_open_lamp(C.int(0))
+
+                
                 //Read all move queue and take out the value of the floor.
                 /*
                 MsgToServer.Cmd = server.CMD_READ_ALL

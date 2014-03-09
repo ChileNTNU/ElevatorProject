@@ -25,6 +25,7 @@ type Participant struct{
     MoveQueue *list.List
     ActualPos int
     Timestamp time.Time
+    AckResponse bool
 }
 
 type TableReqMessage struct {
@@ -34,11 +35,6 @@ type TableReqMessage struct {
 func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- network.Message, ChanFromNetwork <-chan network.Message, ChanToHardware chan<- *list.List, ChanFromDec <-chan TableReqMessage){
 
     var NewParticipant Participant
-    NewParticipant.IPsender = "1.2.3.4"
-    NewParticipant.GotoQueue = nil
-    NewParticipant.MoveQueue = nil
-    NewParticipant.ActualPos = -1
-    NewParticipant.Timestamp = time.Now()
 
     var NetworkMsg network.Message
     var ServerMsg server.ServerMsg
@@ -71,7 +67,8 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 NewParticipant.MoveQueue = arrayToList(NetworkMsg.MoveQueue,NetworkMsg.SizeMoveQueue)
                 NewParticipant.ActualPos = NetworkMsg.ActualPos
                 NewParticipant.Timestamp = time.Now()
-
+                NewParticipant.AckResponse = false
+                
                 TempElement = partOfParticipantList(ParticipantsList,NewParticipant.IPsender)
                 if TempElement != nil{
                     ParticipantsList.Remove(TempElement)

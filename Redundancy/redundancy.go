@@ -17,7 +17,7 @@ const LAYOUT_TIME = "15:04:05.000 "
 
 //EAGM Change timeout to 1000ms. Debug 2000ms
 const TIMEOUT = 1000*time.Millisecond
-const FLOORS = 4
+
 
 type Participant struct{
     IPsender string
@@ -77,6 +77,9 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 
             //If you receive a message from the Decision module, then send him the participants table
             case TableReq =<- ChanFromDec:
+                // TAF debug
+                fmt.Print("RD_ Send Participant to Dec: ")
+                printParticipantsList(ParticipantsList)
             	TableReq.ChanQueue <- ParticipantsList
             
             case <- timeout:

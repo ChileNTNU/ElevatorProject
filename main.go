@@ -82,7 +82,7 @@ func main(){
 //    Chan_Redun_Server <- ServerTest
 
     for{
-        fmt.Println("MN_ Doing something else")
+        //fmt.Println("MN_ Doing something else")
         time.Sleep(5000 * time.Millisecond)
 //        i := <-Chan_Network_Redun
 //        fmt.Println("Main:",i)

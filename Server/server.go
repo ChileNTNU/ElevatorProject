@@ -24,7 +24,9 @@ const UP = 1
 const DOWN = 2
 const NONE = 0
 
-const DEBUG = false
+
+const FLOORS = 4
+const DEBUG = true
 
 type ElementQueue struct{
    Floor int
@@ -159,7 +161,10 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                 }else{
                     //Clear list and then copy all element of queue
                     TargetQueue.Init()
-                    TargetQueue.PushBackList(MsgRecv.NewQueue)              
+                    TargetQueue.PushBackList(MsgRecv.NewQueue)
+                    if DEBUG{
+                        fmt.Println("SR_ Replaced all")        
+                    }  
                 }               
             case CMD_ATTACH:
                 if(TargetQueue != nil && MsgRecv.NewQueue != nil){
@@ -172,10 +177,11 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
         }
         
         if DEBUG{
+            fmt.Print("SR_ Goto: ")
             printList(GotoQueue)
-            fmt.Println("SR_ --------")
+            fmt.Print("SR_ Move: ")
             printList(MoveQueue)
-            fmt.Println("SR_ --------")
+            fmt.Print("SR_ Req: ")
             printList(ReqQueue)
             fmt.Println("SR_ Actual:", ActualPos)
         }

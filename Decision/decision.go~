@@ -34,10 +34,7 @@ const (
 
 /*
 TODO
-Implement the channel to the redundancy for getting the participants table
-Not in the parameters list of DecisionManager
 
-Check if at the end we still need the "state" var
 */
 func DecisionManager(ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan network.Message, ChanToNetwork chan<- network.Message, ChanToRedun chan<- redundancy.TableReqMessage ){
 
@@ -61,7 +58,7 @@ func DecisionManager(ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-cha
 	for{
 		switch(MainState){
 			case STANDBY_ST:
-				if(DEBUG){fmt.Println("DS_ STANDBY STATE BEGIN")}
+				//if(DEBUG){fmt.Println("DS_ STANDBY STATE BEGIN")}
 				//In standby state, only two options
 				select{
 				    case NetworkMsg =<- ChanFromNetwork:
@@ -139,6 +136,16 @@ func master (ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan networ
 	//TABLE for record who has answer
 	var ACKcounter int
 	var ParticipantElement *list.Element
+    var FrontParticipant *list.Element
+    var BackParticipant *list.Element
+    var ElementInAnyQueue bool
+    var TargetParticipant string
+    var SameDirectionParticipants *list.List
+    SameDirectionParticipants = list.New()
+    var DirectionQueueUp int
+    var FloorDifference int
+    var LastFloorDifference int
+    var CmdSuccessful bool
 
 //-----------------NETWORK
 	var MsgToNetwork network.Message
@@ -266,6 +273,182 @@ For_loop_RESPONSE_ACK:
                 }
 			case MASTER_3_ST:
 				if(DEBUG){fmt.Println("DS_ MASTER_3_ST")}
+                TargetParticipant = ""
+                ElementInAnyQueue = false
+                FloorDifference = server.FLOORS
+
+				// Read first element from request queue 
+				MsgToServer.Cmd = server.CMD_READ_FIRST
+				MsgToServer.QueueID = server.ID_REQQUEUE
+				MsgToServer.ChanVal = ChanToServer_Decision_ElementQueue
+				MsgToServer.ChanQueue = nil              
+			   
+				ChanToServer <- MsgToServer
+				dummyElement =<- ChanToServer_Decision_ElementQueue
+                
+                // if the request came from inside your elevator put it in your GotoQueue
+				if(dummyElement.Direction == server.NONE) {
+					for e := ParticipantsList.Front(); e != nil; e = e.Next(){
+		                if(e.Value.(redundancy.Participant).IPsender == "Local"){
+							if(fitInQueue(e.Value.(redundancy.Participant).GotoQueue,e.Value.(redundancy.Participant).ActualPos,dummyElement) == false){
+                                e.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)
+                            }
+                            TargetParticipant = "Local"
+                            if(DEBUG){ 
+                                fmt.Println("DS_ Request put in own in queue") 
+                                printList(e.Value.(redundancy.Participant).GotoQueue)
+                            }
+						}						
+		            }
+                } else {
+                    // check if element is already in any queue
+                	for e := ParticipantsList.Front(); e != nil; e = e.Next(){
+                        for f := e.Value.(redundancy.Participant).GotoQueue.Front(); f != nil; f = f.Next(){
+                            if(f.Value.(server.ElementQueue) == dummyElement){
+                                ElementInAnyQueue = true
+                                goto DecisionDone
+                            }
+                        }				
+		            }
+    
+                    // Search for free elevator
+                    for e := ParticipantsList.Front(); e != nil; e = e.Next(){
+	                    if(e.Value.(redundancy.Participant).GotoQueue.Len() == 0){
+						    e.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)
+                            TargetParticipant = e.Value.(redundancy.Participant).IPsender
+                            goto DecisionDone
+					    }						
+	                }
+                    
+                    // determine the elevatores which go in the same direction 
+                    DirectionQueueUp = 0
+                    for e := ParticipantsList.Front(); e != nil; e = e.Next(){
+                        FrontParticipant = e.Value.(redundancy.Participant).GotoQueue.Front()
+                        BackParticipant = e.Value.(redundancy.Participant).GotoQueue.Back()
+                        DirectionQueueUp = BackParticipant.Value.(server.ElementQueue).Floor - FrontParticipant.Value.(server.ElementQueue).Floor
+                        if(DirectionQueueUp > 1) { 
+                            DirectionQueueUp = server.UP
+                        } else {
+                            DirectionQueueUp = server.DOWN
+                        }
+
+	                    if(DirectionQueueUp == dummyElement.Direction){
+                            SameDirectionParticipants.PushBack(e)
+					    }						
+	                }
+
+                    // check if request fits in a queue which has the same direction
+                    if(SameDirectionParticipants != nil) {
+					    for e := SameDirectionParticipants.Front(); e != nil; e = e.Next(){
+						    if(fitInQueue(e.Value.(redundancy.Participant).GotoQueue,e.Value.(redundancy.Participant).ActualPos,dummyElement) == true){
+                                TargetParticipant = e.Value.(redundancy.Participant).IPsender
+                                goto DecisionDone                                
+                            }			
+		                }
+                    }
+                    // new request does not fit in any queues that have the same direction -> take all
+                    // Get Queue with closest end position
+                    for e := ParticipantsList.Front(); e != nil; e = e.Next(){
+                        BackParticipant = e.Value.(redundancy.Participant).GotoQueue.Back()
+                        FloorDifference = BackParticipant.Value.(server.ElementQueue).Floor - dummyElement.Floor
+                        if FloorDifference < 0 {
+                            FloorDifference *= -1
+                        }
+                        if( FloorDifference < LastFloorDifference){
+                            LastFloorDifference = FloorDifference
+                            TargetParticipant = e.Value.(redundancy.Participant).IPsender
+                        }			
+		            }
+                    ParticipantElement = partOfParticipantList(ParticipantsList,TargetParticipant)
+                    // and add the new request to its queue
+                    ParticipantElement.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)              
+                }
+                
+ 								
+				
+        DecisionDone:
+                
+                // Get participant that gets the new Gotoqueue
+                ParticipantElement = partOfParticipantList(ParticipantsList,TargetParticipant)
+
+                // Send new Gotoqueue over network if the request was not in any queue already and was not put in you own queue
+                if(ElementInAnyQueue == false && TargetParticipant != "Local"){
+                    if(DEBUG){ fmt.Println(TargetParticipant) }
+
+            	    //Set all AckResponse flag to true except from the one which will receive the CMD
+                    for e := ParticipantsList.Front(); e != nil; e = e.Next(){
+                        if e.Value.(redundancy.Participant).IPsender != TargetParticipant {
+                            dummyParticipant = e.Value.(redundancy.Participant)
+                            dummyParticipant.AckResponse = true
+                            e.Value = dummyParticipant
+                        } else {
+                            dummyParticipant = e.Value.(redundancy.Participant)
+                            dummyParticipant.AckResponse = false
+                            e.Value = dummyParticipant
+                        }  
+                    }
+                      
+					//Send the new Gotoqueue 
+					MsgToNetwork = 	network.Message{}
+					MsgToNetwork.IDsender = "dummy"  //Filled out by network module
+					MsgToNetwork.IDreceiver = TargetParticipant
+					MsgToNetwork.MsgType = network.CMD
+					MsgToNetwork.SizeGotoQueue = ParticipantElement.Value.(redundancy.Participant).GotoQueue.Len()
+					//MsgToNetwork.SizeMoveQueue = 0
+					MsgToNetwork.GotoQueue = listToArray(ParticipantElement.Value.(redundancy.Participant).GotoQueue)
+					//MsgToNetwork.MoveQueue = buf
+					//MsgToNetwork.ActualPos = 0
+					ChanToNetwork <- MsgToNetwork
+
+                    // Wait for an acknowledge from the one which got the queue
+                    timeout_response := time.Tick(100*time.Millisecond)
+    For_loop_RESPONSE_CMD_ACK: 
+			        for{
+                    	select{
+                    		case MsgFromNetwork =<- ChanFromNetwork:                		
+                    			if(MsgFromNetwork.MsgType == network.ACK){
+							        ParticipantElement = partOfParticipantList(ParticipantsList, MsgFromNetwork.IDsender)
+							        if (ParticipantElement != nil && ParticipantElement.Value.(redundancy.Participant).IPsender == TargetParticipant){
+								        dummyParticipant = ParticipantElement.Value.(redundancy.Participant)
+					                    dummyParticipant.AckResponse = true
+					                    ParticipantElement.Value = dummyParticipant
+                                        CmdSuccessful = true
+                                        break For_loop_RESPONSE_CMD_ACK
+							        }
+						        }
+					        case <-timeout_response:
+                                CmdSuccessful = false
+                                MasterST = MASTER_4_ST
+						        break For_loop_RESPONSE_CMD_ACK
+                    	}
+                    }
+                }
+                
+                // If either one successfully received the new queue, it was already in a queue or you took it
+                if(CmdSuccessful == true || ElementInAnyQueue == true || TargetParticipant == "Local"){
+				    // Extract first element from request queue 
+				    MsgToServer.Cmd = server.CMD_EXTRACT
+				    MsgToServer.QueueID = server.ID_REQQUEUE
+				    MsgToServer.ChanVal = ChanToServer_Decision_ElementQueue
+				    MsgToServer.ChanQueue = nil              
+			       
+				    ChanToServer <- MsgToServer
+				    dummyElement =<- ChanToServer_Decision_ElementQueue 
+
+                    if(TargetParticipant == "Local") {
+    					// Send new GotoQueue to server
+						MsgToServer.Cmd = server.CMD_REPLACE_ALL
+						MsgToServer.QueueID = server.ID_GOTOQUEUE
+						MsgToServer.NewQueue = ParticipantElement.Value.(redundancy.Participant).GotoQueue
+						MsgToServer.ChanVal = nil
+						MsgToServer.ChanQueue = nil             
+					   
+						ChanToServer <- MsgToServer     
+                    }
+                    MasterST = MASTER_5_ST 
+                }
+ 
+/*
 				//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 				// Extract first element from request queue 
 				MsgToServer.Cmd = server.CMD_EXTRACT
@@ -287,9 +470,10 @@ For_loop_RESPONSE_ACK:
 				
 				MasterST = MASTER_5_ST
 				//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+*/
 			case MASTER_4_ST:
-				if(DEBUG){fmt.Println("DS_ MASTER_4_ST")}			
-				for e := ParticipantsList.Front(); e != nil; e = e.Next(){
+			    if(DEBUG){fmt.Println("DS_ MASTER_4_ST")}			
+			    for e := ParticipantsList.Front(); e != nil; e = e.Next(){
                     if (e.Value.(redundancy.Participant).AckResponse == false){
 					    ParticipantsList.Remove(e)
 					}						
@@ -463,6 +647,66 @@ func partOfParticipantList(List *list.List, IP string) *list.Element {
         }
     }
     return nil
+}
+
+func printList(listToPrint *list.List){      
+    for e := listToPrint.Front(); e != nil; e = e.Next(){    
+        fmt.Printf("F%d,D%d ->",e.Value.(server.ElementQueue).Floor, e.Value.(server.ElementQueue).Direction)
+    }  
+    fmt.Println("")
+}
+
+func fitInQueue(List *list.List,ActualPos int,NewElement server.ElementQueue) bool {
+	var DirectionQueueUp int
+    
+    // check if there is any element in the queue
+    if List.Front() == nil {
+        List.PushBack(NewElement)
+        fmt.Println("Fit: only element")
+        return true
+    }
+
+	// check if Element already in list
+	for e := List.Front(); e != nil; e = e.Next(){
+        if e.Value.(server.ElementQueue).Floor == NewElement.Floor {
+            fmt.Println("Fit: already in list")
+            return true
+        }
+    }
+	// check direction you want to go
+    DirectionQueueUp = List.Front().Value.(server.ElementQueue).Floor - ActualPos
+    
+    // we want to go up 
+    if(DirectionQueueUp >= 0) {
+        for e := List.Back(); e != nil; e = e.Prev(){
+            if e.Value.(server.ElementQueue).Floor < NewElement.Floor {
+                List.InsertAfter(NewElement,e)
+                fmt.Println("Fit: up, inserted after")
+                return true
+            }
+        }
+        if ActualPos < NewElement.Floor {
+            List.InsertBefore(NewElement,List.Front())
+            fmt.Println("Fit: up, inserted in beginning")
+            return true
+        }
+    // else go down
+    } else {
+        for e := List.Back(); e != nil; e = e.Prev(){
+            if e.Value.(server.ElementQueue).Floor > NewElement.Floor {
+                List.InsertAfter(NewElement,e)
+                fmt.Println("Fit: down, inserted after")
+                return true
+            }
+        }        
+        if ActualPos > NewElement.Floor {
+            List.InsertBefore(NewElement,List.Front())
+            fmt.Println("Fit: down, inserted in beginning")
+            return true
+        }
+
+    }
+    return false
 }
 
 func check(err error){

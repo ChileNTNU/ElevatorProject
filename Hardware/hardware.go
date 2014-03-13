@@ -10,7 +10,6 @@ import (
     "fmt"
     "container/list"    
     ".././Server"
-    ".././Redundancy"
     "time"
 )
 
@@ -342,11 +341,11 @@ func switchLights(ChanFromRedundancy <-chan *list.List){
                 //NB The redundancy module sends us a message every 200ms               
                 //First switch off all the button lamps
                 if (DEBUG){fmt.Println("HW_ light routine")}
-                for i := 0; i < redundancy.FLOORS; i++{
+                for i := 0; i < server.FLOORS; i++{
                     if (i != 0){
                     	C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, C.int(i), 0)
                     }
-                    if (i != (redundancy.FLOORS -1)){
+                    if (i != (server.FLOORS -1)){
                     	C.elev_set_button_lamp(C.BUTTON_CALL_UP, C.int(i), 0)                    
                     }                    
                 }

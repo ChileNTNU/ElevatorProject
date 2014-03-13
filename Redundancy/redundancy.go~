@@ -17,7 +17,7 @@ const LAYOUT_TIME = "15:04:05.000 "
 
 //EAGM Change timeout to 1000ms. Debug 2000ms
 const TIMEOUT = 1000*time.Millisecond
-const FLOORS = 4
+
 
 type Participant struct{
     IPsender string
@@ -67,8 +67,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 NewParticipant.MoveQueue = arrayToList(NetworkMsg.MoveQueue,NetworkMsg.SizeMoveQueue)
                 NewParticipant.ActualPos = NetworkMsg.ActualPos
                 NewParticipant.Timestamp = time.Now()
-                //NewParticipant.ACKresponse = false
-                NewParticipant.ACKresponse = 0
+                NewParticipant.AckResponse = false
                 
                 TempElement = partOfParticipantList(ParticipantsList,NewParticipant.IPsender)
                 if TempElement != nil{
@@ -78,6 +77,9 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 
             //If you receive a message from the Decision module, then send him the participants table
             case TableReq =<- ChanFromDec:
+                // TAF debug
+                fmt.Print("RD_ Send Participant to Dec: ")
+                printParticipantsList(ParticipantsList)
             	TableReq.ChanQueue <- ParticipantsList
             
             case <- timeout:
@@ -219,7 +221,7 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
                 MsgToNetwork.ActualPos = ActualPos
 
 				//EAGM Change sleep time to 50ms. Debug 1000ms
-          		time.Sleep(50*time.Millisecond)
+          		//time.Sleep(10*time.Millisecond)
         }
     }
 }

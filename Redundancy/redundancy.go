@@ -12,7 +12,7 @@ import(
 TODO
 - Channel to Dec
 */
-const DEBUG = false
+const DEBUG = true
 const LAYOUT_TIME = "15:04:05.000 "
 
 //EAGM Change timeout to 1000ms. Debug 2000ms
@@ -60,7 +60,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
     for{
         select{
             case NetworkMsg =<- ChanFromNetwork:
-            	if(DEBUG){fmt.Println("RD_ GOT MSG FROM NETWORK")}
+            	if(DEBUG){fmt.Println(time.Now()," RD_ GOT MSG FROM NETWORK")}
             	//Add other elevator on the system to the participants table
                 NewParticipant.IPsender = NetworkMsg.IDsender
                 NewParticipant.GotoQueue = arrayToList(NetworkMsg.GotoQueue,NetworkMsg.SizeGotoQueue)
@@ -78,7 +78,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
             //If you receive a message from the Decision module, then send him the participants table
             case TableReq =<- ChanFromDec:
                 // TAF debug
-                fmt.Print("RD_ Send Participant to Dec: ")
+                fmt.Print(time.Now(), "RD_ Send Participant to Dec: ")
                 printParticipantsList(ParticipantsList)
             	TableReq.ChanQueue <- ParticipantsList
             
@@ -194,6 +194,9 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
 
                 GotoQueue.Init()
                 GotoQueue.PushBackList(TempQueue)
+                
+                fmt.Print(time.Now()," RD_ GotoQueue read from Server: ")
+                printList(GotoQueue)
 
                 // Get Movequeue
                 MsgToServer.QueueID = server.ID_MOVEQUEUE

@@ -108,7 +108,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                        }
                     }
                 }else{
-                    fmt.Println("CMD_ADD:TargetQueue NIL")
+                    fmt.Println("CMD_ADD:TargetQueue NIL", MsgRecv.QueueID)
                 }
             case CMD_EXTRACT:   //It is just extracting the first value         
                 if TargetQueue != nil {
@@ -123,7 +123,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                         extractValue.Floor = -1
                         extractValue.Direction = -1
                         if DEBUG {
-                            fmt.Println("SR_ CMD_EXTRACT: Empty queue")                     
+                            fmt.Println("SR_ CMD_EXTRACT: Empty queue", MsgRecv.QueueID)                     
                         }                       
                     }
                     MsgRecv.ChanVal <- extractValue
@@ -141,12 +141,12 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                         firstElement.Floor = -1
                         firstElement.Direction = -1
                         if DEBUG {
-                            fmt.Println("SR_ CMD_READ_FIRST: Empty queue")                      
+                            fmt.Println("SR_ CMD_READ_FIRST: Empty queue", MsgRecv.QueueID)                      
                         }                       
                     }
                     MsgRecv.ChanVal <- firstElement
                 }else{                  
-                    fmt.Println("CMD_READ_FIRST:TargetQueue NIL")
+                    fmt.Println("CMD_READ_FIRST:TargetQueue NIL", MsgRecv.QueueID)
                 }           
             case CMD_READ_ALL:              
                 if MsgRecv.QueueID == ID_ACTUAL_POS {
@@ -163,14 +163,14 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                     TargetQueue.Init()
                     TargetQueue.PushBackList(MsgRecv.NewQueue)
                     if DEBUG{
-                        fmt.Println("SR_ Replaced all")        
+                        fmt.Println("SR_ Replaced all", MsgRecv.QueueID)        
                     }  
                 }               
             case CMD_ATTACH:
                 if(TargetQueue != nil && MsgRecv.NewQueue != nil){
                     TargetQueue.PushBackList(MsgRecv.NewQueue)
                 }else{
-                    fmt.Println("CMD_ATTACH: Target Queue or NewQueue nil")
+                    fmt.Println("CMD_ATTACH: Target Queue or NewQueue nil", MsgRecv.QueueID)
                 }
             default:
                 fmt.Println("Command not possible")
@@ -179,8 +179,8 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
         if DEBUG{
             fmt.Print("SR_ Goto: ")
             printList(GotoQueue)
-            fmt.Print("SR_ Move: ")
-            printList(MoveQueue)
+            //fmt.Print("SR_ Move: ")
+            //printList(MoveQueue)
             fmt.Print("SR_ Req: ")
             printList(ReqQueue)
             fmt.Println("SR_ Actual:", ActualPos)

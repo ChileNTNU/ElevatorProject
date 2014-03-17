@@ -123,7 +123,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                         extractValue.Floor = -1
                         extractValue.Direction = -1
                         if DEBUG {
-                            fmt.Println("SR_ CMD_EXTRACT: Empty queue")                     
+                            fmt.Println("SR_ CMD_EXTRACT: Empty queue", MsgRecv.QueueID)                     
                         }                       
                     }
                     MsgRecv.ChanVal <- extractValue
@@ -181,7 +181,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
             printList(GotoQueue)
             fmt.Print("SR_ Move: ")
             printList(MoveQueue)
-            fmt.Println("SR_ --------")
+            fmt.Print("SR_ Req: ")
             printList(ReqQueue)
             fmt.Println("SR_ Actual:", ActualPos)
         }

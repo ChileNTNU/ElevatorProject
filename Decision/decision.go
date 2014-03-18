@@ -269,6 +269,7 @@ For_loop_RESPONSE_ACK:
                 TargetParticipant = ""
                 ElementInAnyQueue = false
                 FloorDifference = server.FLOORS
+                SameDirectionParticipants.Init()
 
 				// Read first element from request queue 
 				MsgToServer.Cmd = server.CMD_READ_FIRST
@@ -287,8 +288,8 @@ For_loop_RESPONSE_ACK:
                                 e.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)
                             }
                             TargetParticipant = "Local"
-                            if(DEBUG){ 
-                                fmt.Println("DS_ Request put in own queue") 
+                            if(DEBUG){
+                            	fmt.Println("DS_ Request put in own queue") 
                                 printList(e.Value.(redundancy.Participant).GotoQueue)
                             }
 						}						
@@ -297,8 +298,9 @@ For_loop_RESPONSE_ACK:
                     // check if element is already in any queue
                 	for e := ParticipantsList.Front(); e != nil; e = e.Next(){
                         for f := e.Value.(redundancy.Participant).GotoQueue.Front(); f != nil; f = f.Next(){
-                            if(f.Value.(server.ElementQueue) == dummyElement){
+                            if(f.Value.(server.ElementQueue) == dummyElement){                            	
                                 ElementInAnyQueue = true
+                                if(DEBUG){fmt.Println("DS_ MASTER_3_ST Element already in any queue")}
                                 goto DecisionDone
                             }
                         }				
@@ -309,6 +311,7 @@ For_loop_RESPONSE_ACK:
 	                    if(e.Value.(redundancy.Participant).GotoQueue.Len() == 0){
 						    e.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)
                             TargetParticipant = e.Value.(redundancy.Participant).IPsender
+                            if(DEBUG){fmt.Println("DS_ MASTER_3_ST There was a free elevator and it got the request element")}
                             goto DecisionDone
 					    }						
 	                }
@@ -329,12 +332,14 @@ For_loop_RESPONSE_ACK:
                                 if(e.Value.(redundancy.Participant).GotoQueue.Back().Value.(server.ElementQueue).Floor < dummyElement.Floor){
                                     TargetParticipant = e.Value.(redundancy.Participant).IPsender
                                     e.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)
+                                    if(DEBUG){fmt.Println("DS_ MASTER_3_ST Element inserted in a participant with the last direction UP")}
                                     goto DecisionDone        
                                  }                        
                             }else{
                                 if(e.Value.(redundancy.Participant).GotoQueue.Back().Value.(server.ElementQueue).Floor > dummyElement.Floor){
                                     TargetParticipant = e.Value.(redundancy.Participant).IPsender
                                     e.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)
+                                    if(DEBUG){fmt.Println("DS_ MASTER_3_ST Element inserted in a participant with the last direction DOWN")}
                                     goto DecisionDone
                                  }
                             }
@@ -367,12 +372,14 @@ For_loop_RESPONSE_ACK:
                                 if(e.Value.(redundancy.Participant).GotoQueue.Front().Value.(server.ElementQueue).Floor > dummyElement.Floor && e.Value.(redundancy.Participant).ActualPos < dummyElement.Floor){
                                     TargetParticipant = e.Value.(redundancy.Participant).IPsender
                                     e.Value.(redundancy.Participant).GotoQueue.InsertBefore(dummyElement, e.Value.(redundancy.Participant).GotoQueue.Front())
+                                    if(DEBUG){fmt.Println("DS_ MASTER_3_ST Element inserted in a participant at the begin UP")}
                                     goto DecisionDone        
                                  }                        
                             }else{
                                 if(e.Value.(redundancy.Participant).GotoQueue.Back().Value.(server.ElementQueue).Floor < dummyElement.Floor && e.Value.(redundancy.Participant).ActualPos > dummyElement.Floor){
                                     TargetParticipant = e.Value.(redundancy.Participant).IPsender
                                     e.Value.(redundancy.Participant).GotoQueue.InsertBefore(dummyElement, e.Value.(redundancy.Participant).GotoQueue.Front())
+                                    if(DEBUG){fmt.Println("DS_ MASTER_3_ST Element inserted in a participant at the begin DOWN")}
                                     goto DecisionDone
                                  }
                             }
@@ -426,7 +433,8 @@ For_loop_RESPONSE_ACK:
                         }  
                     }
                       
-					//Send the new Gotoqueue 
+					//Send the new Gotoqueue
+					if(DEBUG){fmt.Println("DS_ MASTER_3_ST Send cmd selected slave ", TargetParticipant)} 
 					MsgToNetwork = 	network.Message{}
 					MsgToNetwork.IDsender = "dummy"  //Filled out by network module
 					MsgToNetwork.IDreceiver = TargetParticipant
@@ -475,6 +483,7 @@ For_loop_RESPONSE_ACK:
 
                     if(TargetParticipant == "Local") {
     					// Send new GotoQueue to server
+						if(DEBUG){fmt.Println("DS_ MASTER_3_ST Send the request element to your gotoqueue")} 
 						MsgToServer.Cmd = server.CMD_REPLACE_ALL
 						MsgToServer.QueueID = server.ID_GOTOQUEUE
 						MsgToServer.NewQueue = ParticipantElement.Value.(redundancy.Participant).GotoQueue

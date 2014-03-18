@@ -3,7 +3,7 @@ package main
 import(
     "fmt"
     "time"
-//  "os"
+    "os"
     "container/list"   //For using lists        
     "./Network"
     "./Server"
@@ -14,6 +14,11 @@ import(
 
 
 func main(){
+
+	//Start back up
+    cmd := exec.Command("mate-terminal", "-e" ,"go run backup.go")
+    cmd.Start();
+    
     // Channels for NetworkManager
     Chan_Network_Decision := make(chan network.Message,100)
     Chan_Decision_Network := make(chan network.Message,100)
@@ -31,61 +36,16 @@ func main(){
     // Channel for Redundancy
     Chan_Decision_Redun := make (chan redundancy.TableReqMessage)
 
-    var testmsg network.Message
-    testmsg.IDsender = "myIP"
-    testmsg.IDreceiver = "78.91.17.248"
-    testmsg.MsgType = 0
-
-    var GotoQueue *list.List
-    GotoQueue = list.New()
-
-    var dummyElementQueue server.ElementQueue
-    dummyElementQueue.Direction = -1
-    dummyElementQueue.Floor = 1
-    GotoQueue.PushBack(dummyElementQueue)
-    dummyElementQueue.Floor = 11
-    GotoQueue.PushBack(dummyElementQueue)
-    dummyElementQueue.Floor = 111
-    GotoQueue.PushBack(dummyElementQueue)
-    dummyElementQueue.Floor = 1111
-    GotoQueue.PushBack(dummyElementQueue)
-
-
-    var ServerTest server.ServerMsg
-    ServerTest.Cmd = server.CMD_ATTACH
-    ServerTest.QueueID = server.ID_GOTOQUEUE
-    ServerTest.NewQueue = GotoQueue
-
-
-    fmt.Println("Hello!")
+    fmt.Println("Hello Sverre and Anders! :D")
     go redundancy.Redundancy(Chan_Redun_Server,Chan_Redun_Network,Chan_Network_Redun,Chan_Redun_Hardware, Chan_Decision_Redun)
     go network.NetworkManager(Chan_Network_Decision,Chan_Decision_Network,Chan_Network_Redun,Chan_Redun_Network)
     go server.Server(Chan_Redun_Server,Chan_Dec_Server,Chan_HW_Server)
 	go decision.DecisionManager(Chan_Dec_Server, Chan_Network_Decision, Chan_Decision_Network, Chan_Decision_Redun)
 	go hardware.HardwareManager(Chan_HW_Server,Chan_Redun_Hardware)
 
-    // Network messages
-    Chan_Redun_Network <- testmsg
-    testmsg.MsgType = 2
-    Chan_Redun_Network <- testmsg
-    testmsg.MsgType = 3
-    Chan_Redun_Network <- testmsg
-    testmsg.MsgType = 4
-    Chan_Redun_Network <- testmsg
-    testmsg.MsgType = 5
-    Chan_Redun_Network <- testmsg
-
-    fmt.Println("Msg in channel")
-    Chan_Decision_Network <- testmsg
-
-    // Message to server
-//    Chan_Redun_Server <- ServerTest
-
     for{
-        fmt.Println("MN_ Doing something else")
+        //fmt.Println("MN_ Doing something else")
         time.Sleep(5000 * time.Millisecond)
-//        i := <-Chan_Network_Redun
-//        fmt.Println("Main:",i)
     }
 
 }

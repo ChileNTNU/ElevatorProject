@@ -31,8 +31,6 @@ type Message struct{
     MsgType byte
     SizeGotoQueue int
     GotoQueue [] server.ElementQueue
-    SizeMoveQueue int
-    MoveQueue [] server.ElementQueue
     ActualPos int
 }
 

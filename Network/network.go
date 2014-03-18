@@ -13,6 +13,7 @@ import(
 
 const PORT_STATUS = ":20019"
 const PORT_CMD  = ":20018"
+const PORT_HEART_BIT = ":20100"
 //Broadcast lab 129.241.187.255
 
 // Do not use '0' in the Message struct for avoiding problems with the decoder
@@ -39,33 +40,36 @@ var LocalIP string
 
 func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,ChanToRedun chan Message,ChanFromRedun chan Message,){
 
+	var MyPID int
+	MyPID = os.Getpid()
+
     fmt.Println("NET_ Network Manager started")
 
 // UPD status
-  //Address from where we are going to listen for others status messages
-  LocalAddrStatus,err := net.ResolveUDPAddr("udp4",PORT_STATUS)
-  check(err)
+	//Address from where we are going to listen for others status messages
+	LocalAddrStatus,err := net.ResolveUDPAddr("udp4",PORT_STATUS)
+	check(err)
 
-  //Address to where we are going to send our status(BROADCAST)
-    RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","129.241.187.255"+PORT_STATUS)
-    check(err)
+    //Address to where we are going to send our status(BROADCAST)
+	RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","129.241.187.255"+PORT_STATUS)
+	check(err)
 
-    // Make connection for sending
-    ConnStatusSend,err := net.DialUDP("udp4",nil,RemoteAddrStatus)
-    check(err)
+	// Make connection for sending status
+	ConnStatusSend,err := net.DialUDP("udp4",nil,RemoteAddrStatus)
+	check(err)
 
-    // Create connection for listening (used for receive broadcast messages)
-    ConnStatusListen,err := net.ListenUDP("udp4",LocalAddrStatus)
+	// Create connection for listening (used for receive broadcast messages)
+	ConnStatusListen,err := net.ListenUDP("udp4",LocalAddrStatus)
 
-    // find out own IP address
-    LocalIPaddr := ConnStatusSend.LocalAddr()
-    LocalIPtmp := strings.SplitN(LocalIPaddr.String(),":",2)
-    LocalIP = LocalIPtmp[0]
+	// find out own IP address
+	LocalIPaddr := ConnStatusSend.LocalAddr()
+	LocalIPtmp := strings.SplitN(LocalIPaddr.String(),":",2)
+	LocalIP = LocalIPtmp[0]
 
 // UDP command
-  //Address from where we are going to listen to others Command messages
-  LocalAddrCmd,err := net.ResolveUDPAddr("udp4",PORT_CMD)
-  check(err)
+	//Address from where we are going to listen to others Command messages
+	LocalAddrCmd,err := net.ResolveUDPAddr("udp4",PORT_CMD)
+	check(err)
 
     // connection for listening
     ConnCmd,err := net.ListenUDP("udp4",LocalAddrCmd)
@@ -74,6 +78,15 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
         _,file,line,_ := runtime.Caller(0)
         fmt.Println(file, line)
     }
+
+// UDP alive connection for backup program
+	//Resolve address to send, in this case our own address
+	LoopbackAlive,err := net.ResolveUDPAddr("udp4","127.0.0.1"+PORT_HEART_BIT)
+	check(err)
+
+	//Make connection for sending the loopback message
+	ConnAliveSend,err := net.DialUDP("udp4",nil,LoopbackAlive)
+	check(err)
 
 
 //Create go routines 
@@ -84,8 +97,18 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 
     //Do nothing so that go routines are not terminated
     for {
-        time.Sleep(5000*time.Millisecond)
+        SenderAlive(ConnAliveSend, MyPID)
+        time.Sleep(1000*time.Millisecond)
     }
+}
+
+func SenderAlive(ConnAlive *net.UDPConn, PID int){
+	//Create encoder
+	enc := gob.NewEncoder(ConnAlive)
+	//Send encoded message on connection
+	err := enc.Encode(PID)
+	check(err)
+	if(DEBUG){fmt.Println("NET_ Send alive message")}
 }
 
 func ListenerStatus(conn *net.UDPConn,Channel chan<- Message){

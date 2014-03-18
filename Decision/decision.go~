@@ -672,8 +672,6 @@ func printParticipantsList(listToPrint *list.List){
     for e := listToPrint.Front(); e != nil; e = e.Next(){    
         fmt.Printf("%s GOTO:",e.Value.(redundancy.Participant).IPsender)
 		printListNobreak(e.Value.(redundancy.Participant).GotoQueue)
-        fmt.Printf(" MOVE:")
-   		printListNobreak(e.Value.(redundancy.Participant).MoveQueue)
         fmt.Printf(" ACTUAL:%d TIME:%s\n",e.Value.(redundancy.Participant).ActualPos, e.Value.(redundancy.Participant).Timestamp.Format(LAYOUT_TIME))
     }
 }

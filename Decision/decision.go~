@@ -43,6 +43,7 @@ func DecisionManager(ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-cha
 	
 	//-----------------NETWORK
 	var NetworkMsg network.Message
+	var MsgToNetwork network.Message
 		
 	//---------------SERVER
     // Channel for receiving data from the server
@@ -58,13 +59,28 @@ func DecisionManager(ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-cha
 	for{
 		switch(MainState){
 			case STANDBY_ST:
-				//if(DEBUG){fmt.Println("DS_ STANDBY STATE BEGIN")}
+				if(DEBUG){fmt.Println("DS_ STANDBY STATE BEGIN")}
 				//In standby state, only two options
 				select{
 				    case NetworkMsg =<- ChanFromNetwork:
 				    //Go to slave mode only if you receive a START message
 				    if(NetworkMsg.MsgType == network.START){
+    				    if(DEBUG){fmt.Println("DS_ GET INTO SLAVE", time.Now())}
 				    	MainState = SLAVE_ST
+				    	//Wait for the MASTER to finish its 10 millisecond wait time in case any other MASTER exist
+			    	    time.Sleep(50*time.Millisecond)
+	                    //Send ACK to master
+	                    MsgToNetwork = 	network.Message{}
+	                    MsgToNetwork.IDsender = "dummy"  //Filled out by network module
+	                    MsgToNetwork.IDreceiver = NetworkMsg.IDsender
+	                    MsgToNetwork.MsgType = network.ACK
+	                    //MsgToNetwork.SizeGotoQueue = 0
+	                    //MsgToNetwork.SizeMoveQueue = 0
+	                    //MsgToNetwork.GotoQueue = buf
+	                    //MsgToNetwork.MoveQueue = buf
+	                    //MsgToNetwork.ActualPos = 0
+	                    ChanToNetwork <- MsgToNetwork
+                        if(DEBUG){fmt.Println("DS_ SLAVE first ACK sent", time.Now())}
 				    }
 				    
 				    case <- timeout:
@@ -79,16 +95,17 @@ func DecisionManager(ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-cha
 						dummyElement =<- ChanToServer_Decision_ElementQueue
 				
 						if (dummyElement.Floor != -1){
+						    if(DEBUG){fmt.Println("DS_ GET INTO MASTER", time.Now())}
 							MainState = MASTER_ST
 						}				            
 		    }
 			
 			case MASTER_ST:
-				if(DEBUG){fmt.Println("DS_ MASTER STATE BEGIN")}
+				if(DEBUG){fmt.Println("DS_ MASTER STATE BEGIN", time.Now())}
 				MainState = master(ChanToServer, ChanFromNetwork, ChanToNetwork, ChanToRedun)
 			
 			case SLAVE_ST:
-				if(DEBUG){fmt.Println("DS_ SLAVE STATE BEGIN")}
+				if(DEBUG){fmt.Println("DS_ SLAVE STATE BEGIN", time.Now())}
 				MainState = slave(ChanToServer, ChanFromNetwork, ChanToNetwork)
 				//Sleep for some time in order to give the master a chance to read from the server
 				//the request queue
@@ -99,33 +116,6 @@ func DecisionManager(ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-cha
 				MainState = STANDBY_ST
 		}                   
     }
-
-	
-
-	//===============================================================
-	for {
-		// Extract first element from request queue 
-		MsgToServer.Cmd = server.CMD_EXTRACT
-		MsgToServer.QueueID = server.ID_REQQUEUE
-		MsgToServer.ChanVal = ChanToServer_Decision_ElementQueue
-		MsgToServer.ChanQueue = nil              
-	   
-		ChanToServer <- MsgToServer
-		dummyElement =<- ChanToServer_Decision_ElementQueue
-
-		// Add element to the GotoQueue 
-		if dummyElement.Floor != -1{
-			MsgToServer.Cmd = server.CMD_ADD
-			MsgToServer.QueueID = server.ID_GOTOQUEUE
-			MsgToServer.Value = dummyElement
-			MsgToServer.ChanVal = nil
-			MsgToServer.ChanQueue = nil              
-	   
-			ChanToServer <- MsgToServer
-		}
-		time.Sleep(100*time.Millisecond)
-	}
-	//====================================================================
 }
 
 func master (ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan network.Message, ChanToNetwork chan<- network.Message, ChanToRedun chan<- redundancy.TableReqMessage) int {
@@ -220,7 +210,9 @@ For_loop_START: for{
                 			if(MsgFromNetwork.MsgType == network.START){
                 				if(!LocalIPgreater(network.LocalIP,MsgFromNetwork.IDsender)){
                 					//If your are not the master with the lowest ID then
-                					//send an ACK and go to SLAVE_ST. Do the 50ms delay from the SLAVE_ST
+                					//go to SLAVE_ST
+                					
+							    	//Wait for the MASTER to finish its 10 millisecond wait time in case any other MASTER exist
                 					time.Sleep(50*time.Millisecond)
                 					//Reset message that will be sent to other elevators
 									MsgToNetwork = 	network.Message{}
@@ -329,8 +321,8 @@ For_loop_RESPONSE_ACK:
                             SameDirectionParticipants.PushBack(e.Value.(redundancy.Participant))
 					    }						
 	                }
-
-                    // check if request fits in a queue which has the same direction
+	                
+                    // check if request fits in a participant which last element has the same direction
                     if(SameDirectionParticipants != nil) {
 					    for e := SameDirectionParticipants.Front(); e != nil; e = e.Next(){
                             if(dummyElement.Direction == server.UP){
@@ -350,7 +342,6 @@ For_loop_RESPONSE_ACK:
                     }
                     
                     //Try to fit the new request between the actual position and the first element of the queue
-                    
                     //Get all participants which actual movement is the same as your request
                     for e := ParticipantsList.Front(); e != nil; e = e.Next(){
                         FrontElement = e.Value.(redundancy.Participant).GotoQueue.Back()
@@ -381,7 +372,7 @@ For_loop_RESPONSE_ACK:
                             }else{
                                 if(e.Value.(redundancy.Participant).GotoQueue.Back().Value.(server.ElementQueue).Floor < dummyElement.Floor && e.Value.(redundancy.Participant).ActualPos > dummyElement.Floor){
                                     TargetParticipant = e.Value.(redundancy.Participant).IPsender
-                                    e.Value.(redundancy.Participant).GotoQueue.Front().InsertBefore(dummyElement)
+                                    e.Value.(redundancy.Participant).GotoQueue.InsertBefore(dummyElement, e.Value.(redundancy.Participant).GotoQueue.Front())
                                     goto DecisionDone
                                  }
                             }
@@ -390,7 +381,7 @@ For_loop_RESPONSE_ACK:
                     
                     
                     
-                    // new request does not fit at the end of any queues that have the same direction -> take all
+                    // new request does not fit at the end of any queues
                     // Get Queue with closest end position
                     LastFloorDifference = server.FLOORS
                     for e := ParticipantsList.Front(); e != nil; e = e.Next(){
@@ -404,12 +395,12 @@ For_loop_RESPONSE_ACK:
                             TargetParticipant = e.Value.(redundancy.Participant).IPsender
                         }			
 		            }
-		            fmt.Println("Get Participant from table", TargetParticipant)
+		            if(DEBUG){fmt.Println("DS_ Get Participant from table", TargetParticipant)}
                     ParticipantElement = partOfParticipantList(ParticipantsList,TargetParticipant)
                     // and add the new request to its queue
-   		            fmt.Println("Insert element in gotoqueue")
+   		            if(DEBUG){fmt.Println("DS_ Insert element in gotoqueue")}
                     ParticipantElement.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)    
-                    fmt.Println("Insert element in gotoqueue done")
+                    if(DEBUG){fmt.Println("DS_ Insert element in gotoqueue done")}
                 }
                 
 
@@ -471,7 +462,7 @@ For_loop_RESPONSE_ACK:
                     }
                 }
                 
-                // If either one successfully received the new queue, it was already in a queue or you took it
+                // If either one has successfully received the new queue or it was already in a queue or you took it
                 if(CmdSuccessful == true || ElementInAnyQueue == true || TargetParticipant == "Local"){
 				    // Extract first element from request queue 
 				    MsgToServer.Cmd = server.CMD_EXTRACT
@@ -495,29 +486,6 @@ For_loop_RESPONSE_ACK:
                     MasterST = MASTER_5_ST 
                 }
  
-/*
-				//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-				// Extract first element from request queue 
-				MsgToServer.Cmd = server.CMD_EXTRACT
-				MsgToServer.QueueID = server.ID_REQQUEUE
-				MsgToServer.ChanVal = ChanToServer_Decision_ElementQueue
-				MsgToServer.ChanQueue = nil              
-			   
-				ChanToServer <- MsgToServer
-				dummyElement =<- ChanToServer_Decision_ElementQueue
-
-				// Add element to the GotoQueue
-				MsgToServer.Cmd = server.CMD_ADD
-				MsgToServer.QueueID = server.ID_GOTOQUEUE
-				MsgToServer.Value = dummyElement
-				MsgToServer.ChanVal = nil
-				MsgToServer.ChanQueue = nil              
-		   
-				ChanToServer <- MsgToServer
-				
-				MasterST = MASTER_5_ST
-				//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-*/
 			case MASTER_4_ST:
 			    if(DEBUG){fmt.Println("DS_ MASTER_4_ST")}			
 			    for e := ParticipantsList.Front(); e != nil; e = e.Next(){
@@ -589,17 +557,18 @@ func slave (ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan network
     var GotoQueue *list.List
     GotoQueue = list.New()
     
-	//Maximum time for the Master to get all ACK, make decision, send CMD and send LAST_ACK
-	// Maybe increase time because master sleeps at beginning to get latest participant table
-	timeout_req_from_master := time.Tick(1000*time.Millisecond)
-    //First Send ACK any time you receive a START
+    //Maximum time for the Master to get all ACK, make decision, send CMD and send LAST_ACK
+    // Maybe increase time because master sleeps at beginning to get latest participant table
+    timeout_req_from_master := time.Tick(1000*time.Millisecond)
+
     for{
     	select{
     		case MsgFromNetwork =<- ChanFromNetwork:
     			switch (MsgFromNetwork.MsgType){
     				case network.START:
-    					if(DEBUG){fmt.Println("DS_ SLAVE Start")}
-    					time.Sleep(50*time.Millisecond)
+    					if(DEBUG){fmt.Println("DS_ SLAVE Start", time.Now())}
+				    	//Wait for the MASTER to finish its 10 millisecond wait time in case any other MASTER exist
+                        time.Sleep(50*time.Millisecond)
     					//Reset message that will be sent to the master
 						MsgToNetwork = 	network.Message{}
     					MsgToNetwork.IDsender = "dummy"  //Filled out by network module
@@ -612,7 +581,7 @@ func slave (ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan network
 						//MsgToNetwork.ActualPos = 0
 						ChanToNetwork <- MsgToNetwork
     				case network.CMD:
-	    				if(DEBUG){fmt.Println("DS_ SLAVE Cmd")}
+	    				if(DEBUG){fmt.Println("DS_ SLAVE Cmd", time.Now())}
     					TempList = arrayToList(MsgFromNetwork.GotoQueue, MsgFromNetwork.SizeGotoQueue)
     					GotoQueue.Init()
     					GotoQueue.PushBackList(TempList)
@@ -639,14 +608,14 @@ func slave (ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan network
 						ChanToNetwork <- MsgToNetwork						
     					
     				case network.LAST_ACK:
-	    				if(DEBUG){fmt.Println("DS_ SLAVE LastAck")}
+	    				if(DEBUG){fmt.Println("DS_ SLAVE LastAck", time.Now())}
     					return STANDBY_ST    					
     				default:
-    					fmt.Println("DC_ Being SLAVE and received a ACK Message... Something Wrong")
+    					fmt.Println("DC_ Being SLAVE and received a ACK Message... Something Wrong", time.Now())
     			}    			
 			case <-timeout_req_from_master:
 				//If the timeout expired, the something is wrong with the master as it has taken more than 1 second			
-				if(DEBUG){fmt.Println("DS_ SLAVE Timeout")}
+				if(DEBUG){fmt.Println("DS_ SLAVE Timeout", time.Now())}
 				return MASTER_ST
     	}
     }

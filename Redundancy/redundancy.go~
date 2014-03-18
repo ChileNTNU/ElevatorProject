@@ -12,7 +12,7 @@ import(
 TODO
 - Channel to Dec
 */
-const DEBUG = false
+const DEBUG = true
 const LAYOUT_TIME = "15:04:05.000 "
 
 //EAGM Change timeout to 1000ms. Debug 2000ms

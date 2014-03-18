@@ -15,9 +15,8 @@ const CMD_ATTACH = 6
 
 //Queues IDs constants
 const ID_GOTOQUEUE = 1
-const ID_MOVEQUEUE = 2
-const ID_REQQUEUE = 3
-const ID_ACTUAL_POS = 4
+const ID_REQQUEUE = 2
+const ID_ACTUAL_POS = 3
 
 //Constants for the direction
 const UP = 1
@@ -47,14 +46,12 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
     var MsgRecv ServerMsg   
 
     var GotoQueue *list.List    
-    var MoveQueue *list.List
     var ReqQueue *list.List
     var ActualPos int
 
     var TargetQueue *list.List
 
     GotoQueue = list.New()
-    MoveQueue = list.New()
     ReqQueue = list.New()
     ActualPos = 0   
 
@@ -81,9 +78,6 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
             case ID_GOTOQUEUE:
                 TargetQueue = GotoQueue
                 //fmt.Println("Gotoqueue selected")
-            case ID_MOVEQUEUE:
-                TargetQueue = MoveQueue
-                //fmt.Println("Movequeue selected")
             case ID_REQQUEUE:
                 TargetQueue = ReqQueue
                 //fmt.Println("Reqqueue selected")
@@ -179,8 +173,6 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
         if DEBUG{
             fmt.Print("SR_ Goto: ")
             printList(GotoQueue)
-            //fmt.Print("SR_ Move: ")
-            //printList(MoveQueue)
             fmt.Print("SR_ Req: ")
             printList(ReqQueue)
             fmt.Println("SR_ Actual:", ActualPos)

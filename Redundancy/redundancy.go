@@ -22,7 +22,6 @@ const TIMEOUT = 1000*time.Millisecond
 type Participant struct{
     IPsender string
     GotoQueue *list.List
-    MoveQueue *list.List
     ActualPos int
     Timestamp time.Time
     AckResponse bool
@@ -64,7 +63,6 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
             	//Add other elevator on the system to the participants table
                 NewParticipant.IPsender = NetworkMsg.IDsender
                 NewParticipant.GotoQueue = arrayToList(NetworkMsg.GotoQueue,NetworkMsg.SizeGotoQueue)
-                NewParticipant.MoveQueue = arrayToList(NetworkMsg.MoveQueue,NetworkMsg.SizeMoveQueue)
                 NewParticipant.ActualPos = NetworkMsg.ActualPos
                 NewParticipant.Timestamp = time.Now()
                 NewParticipant.AckResponse = false
@@ -149,11 +147,9 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
     ChanToServer_Redun_Queue := make(chan *list.List)
 
     var GotoQueue *list.List
-    var MoveQueue *list.List
     var TempQueue *list.List
     var ActualPos int
     GotoQueue = list.New()
-    MoveQueue = list.New()
     ActualPos = -1
 
     //Dummy variable for reading the actual position from the server
@@ -172,10 +168,7 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
     MsgToNetwork.IDsender = "dummy"  //Filled out by network module
     MsgToNetwork.IDreceiver = "Broadcast"
     MsgToNetwork.MsgType = network.STATUS
-    MsgToNetwork.SizeGotoQueue = 0
-    MsgToNetwork.SizeMoveQueue = 0
     MsgToNetwork.GotoQueue = buf
-    MsgToNetwork.MoveQueue = buf
     MsgToNetwork.ActualPos = 0
 
 
@@ -198,15 +191,6 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
                 fmt.Print(time.Now()," RD_ GotoQueue read from Server: ")
                 printList(GotoQueue)
 
-                // Get Movequeue
-                MsgToServer.QueueID = server.ID_MOVEQUEUE
-
-                ChanToServer <- MsgToServer
-                TempQueue =<- ChanToServer_Redun_Queue
-
-                MoveQueue.Init()
-                MoveQueue.PushBackList(TempQueue)
-
                 // Get Actual Position
                 MsgToServer.QueueID = server.ID_ACTUAL_POS
 
@@ -217,9 +201,6 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
                 // Build network message
                 MsgToNetwork.SizeGotoQueue = GotoQueue.Len()
                 MsgToNetwork.GotoQueue = listToArray(GotoQueue)
-
-                MsgToNetwork.SizeMoveQueue = MoveQueue.Len()
-                MsgToNetwork.MoveQueue = listToArray(MoveQueue)
 
                 MsgToNetwork.ActualPos = ActualPos
 
@@ -283,8 +264,6 @@ func printParticipantsList(listToPrint *list.List){
     for e := listToPrint.Front(); e != nil; e = e.Next(){    
         fmt.Printf("%s GOTO:",e.Value.(Participant).IPsender)
 		printListNobreak(e.Value.(Participant).GotoQueue)
-        fmt.Printf(" MOVE:")
-   		printListNobreak(e.Value.(Participant).MoveQueue)
         fmt.Printf(" ACTUAL:%d TIME:%s\n",e.Value.(Participant).ActualPos, e.Value.(Participant).Timestamp.Format(LAYOUT_TIME))
     }
 }

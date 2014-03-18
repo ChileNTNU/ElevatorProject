@@ -22,7 +22,7 @@ const CMD       = 3
 const ACK       = 4
 const LAST_ACK  = 5
 
-const DEBUG = false
+const DEBUG = true
 const LAYOUT_TIME = "15:04:05.000"
 
 type Message struct{
@@ -31,8 +31,6 @@ type Message struct{
     MsgType byte
     SizeGotoQueue int
     GotoQueue [] server.ElementQueue
-    SizeMoveQueue int
-    MoveQueue [] server.ElementQueue
     ActualPos int
 }
 
@@ -106,7 +104,7 @@ func ListenerStatus(conn *net.UDPConn,Channel chan<- Message){
 				MsgRecv.IDsender = "Local"
 			}
 			
-            if(DEBUG){fmt.Println("NET_ RecvStatus:",MsgRecv)}
+            if(DEBUG){fmt.Println("NET_ RecvStatus:",MsgRecv, time.Now())}
 
             //Discard message if not status
             //Even if it is your local IP send it to the redundancy so it adds it to the participants table
@@ -127,7 +125,7 @@ func ListenerCmd(conn *net.UDPConn,Channel chan<- Message){
             err := dec.Decode(&MsgRecv)
             check(err)
 
-            if(DEBUG){ fmt.Println("NET_ RecvCmd:",MsgRecv) }
+            if(DEBUG){ fmt.Println("NET_ RecvCmd:",MsgRecv, time.Now()) }
 
             // Discard message if not command related
             if((MsgRecv.MsgType == START || MsgRecv.MsgType == CMD || MsgRecv.MsgType == ACK || MsgRecv.MsgType == LAST_ACK) && err == nil){
@@ -150,7 +148,7 @@ func SenderStatus(ConnStatus *net.UDPConn, Channel <-chan Message){
             fmt.Println(err)
         }
         check(err)
-        if(DEBUG){fmt.Println("NET_ StatusSent:",MsgSend)}
+        if(DEBUG){fmt.Println("NET_ StatusSent:",MsgSend, time.Now())}
     }
 }
 
@@ -176,7 +174,7 @@ func SenderCmd(Channel <-chan Message){
         //Close connection
         ConnCmd.Close()
 
-        if(DEBUG){fmt.Println("NET_ CmdSent   :",MsgSend)}
+        if(DEBUG){fmt.Println("NET_ CmdSent   :",MsgSend, time.Now())}
     }
 }
 

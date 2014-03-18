@@ -29,6 +29,7 @@ func main(){
     Chan_Redun_Server := make(chan server.ServerMsg)
   	Chan_Dec_Server := make(chan server.ServerMsg)
   	Chan_HW_Server := make(chan server.ServerMsg)
+  	Chan_Network_Server := make(chan server.ServerMsg)
 
     // Channel for Hardware
     Chan_Redun_Hardware := make(chan *list.List)
@@ -38,7 +39,7 @@ func main(){
 
     fmt.Println("Hello Sverre and Anders! :D")
     go redundancy.Redundancy(Chan_Redun_Server,Chan_Redun_Network,Chan_Network_Redun,Chan_Redun_Hardware, Chan_Decision_Redun)
-    go network.NetworkManager(Chan_Network_Decision,Chan_Decision_Network,Chan_Network_Redun,Chan_Redun_Network)
+    go network.NetworkManager(Chan_Network_Decision,Chan_Decision_Network,Chan_Network_Redun,Chan_Redun_Network, Chan_Network_Server)
     go server.Server(Chan_Redun_Server,Chan_Dec_Server,Chan_HW_Server)
 	go decision.DecisionManager(Chan_Dec_Server, Chan_Network_Decision, Chan_Decision_Network, Chan_Decision_Redun)
 	go hardware.HardwareManager(Chan_HW_Server,Chan_Redun_Hardware)

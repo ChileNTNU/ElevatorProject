@@ -5,6 +5,7 @@ import(
     "net"
     "os"
     "encoding/gob"
+    "container/list"
     "strings"
     "time"    //This file is for the sleep time
     "runtime" //Used for printing the line on the console
@@ -38,7 +39,7 @@ type Message struct{
 var LocalIP string
 
 
-func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,ChanToRedun chan Message,ChanFromRedun chan Message,){
+func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,ChanToRedun chan Message,ChanFromRedun chan Message, ChanToServer chan<- server.ServerMsg){
 
 	var MyPID int
 	MyPID = os.Getpid()
@@ -88,7 +89,6 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 	ConnAliveSend,err := net.DialUDP("udp4",nil,LoopbackAlive)
 	check(err)
 
-
 //Create go routines 
     go ListenerStatus(ConnStatusListen,ChanToRedun)
     go ListenerCmd(ConnCmd,ChanToDecision)
@@ -97,16 +97,59 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 
     //Do nothing so that go routines are not terminated
     for {
-        SenderAlive(ConnAliveSend, MyPID)
+        SenderAlive(ConnAliveSend, MyPID, ChanToServer)
         time.Sleep(1000*time.Millisecond)
     }
 }
 
-func SenderAlive(ConnAlive *net.UDPConn, PID int){
+func SenderAlive(ConnAlive *net.UDPConn, PID int, ChanToServer chan<- server.ServerMsg){
+	
+	var MsgToServer server.ServerMsg
+    ChanToServer_Network_Queue := make(chan *list.List)
+    ChanToServer_Network_ElementQueue := make(chan server.ElementQueue)
+    
+    var GotoQueue *list.List
+    var dummyActualPos server.ElementQueue
+    
+    var AliveNetwork Message
+	
+	//Read the go to queue
+    MsgToServer.Cmd = server.CMD_READ_ALL
+    MsgToServer.QueueID = server.ID_GOTOQUEUE
+    MsgToServer.ChanVal = nil
+    MsgToServer.ChanQueue = ChanToServer_Network_Queue
+   
+    ChanToServer <- MsgToServer
+    GotoQueue =<- ChanToServer_Network_Queue
+	
+	//Read the actual position
+    MsgToServer.Cmd = server.CMD_READ_ALL
+    MsgToServer.QueueID = server.ID_ACTUAL_POS
+    MsgToServer.ChanVal = ChanToServer_Network_ElementQueue
+    MsgToServer.ChanQueue = nil
+   
+    ChanToServer <- MsgToServer
+    dummyActualPos =<- ChanToServer_Network_ElementQueue
+    dummyActualPos.Direction = server.NONE
+
+	//Reset message
+	AliveNetwork = Message{}
+	
+	//Add the actual position to the front of the GotoQueue so the new instance goes to the last floor the elevator was
+	GotoQueue.PushFront(dummyActualPos)
+	
+	AliveNetwork.IDsender = "dummy"  //Filled out by network module
+    AliveNetwork.IDreceiver = "dummy"
+    AliveNetwork.MsgType = 0
+    AliveNetwork.GotoQueue = listToArray(GotoQueue)
+    AliveNetwork.ActualPos = PID
+    
+    if(DEBUG){fmt.Println("NET_ Before alive message", AliveNetwork)}
+	
 	//Create encoder
 	enc := gob.NewEncoder(ConnAlive)
 	//Send encoded message on connection
-	err := enc.Encode(PID)
+	err := enc.Encode(AliveNetwork)
 	check(err)
 	if(DEBUG){fmt.Println("NET_ Send alive message")}
 }
@@ -201,6 +244,16 @@ func SenderCmd(Channel <-chan Message){
     }
 }
 
+func listToArray(Queue *list.List) [] server.ElementQueue {
+    var index int = 0
+    buf := make([] server.ElementQueue, Queue.Len())
+
+    for e := Queue.Front(); e != nil; e = e.Next(){
+        buf[index] = e.Value.(server.ElementQueue)
+        index++
+    }
+    return buf
+}
 
 func check(err error){
     if err != nil{

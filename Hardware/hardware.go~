@@ -10,7 +10,6 @@ import (
     "fmt"
     "container/list"    
     ".././Server"
-    ".././Redundancy"
     "time"
 )
 
@@ -31,7 +30,7 @@ func HardwareManager(ChanToServer chan<- server.ServerMsg, ChanFromRedundancy <-
      
     go gotoFloor(ChanToServer)
     go readButtons(ChanToServer)
-    go switchLights(ChanFromRedundancy)
+    go switchLights(ChanFromRedundancy, ChanToServer)
      
     for{
         time.Sleep(5000*time.Millisecond)
@@ -263,7 +262,7 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
             dummyElement.Floor = 0
             dummyElement.Direction = server.UP
         }else if(C.elev_get_button_signal(C.BUTTON_COMMAND,0) == 1){
-            C.elev_set_button_lamp(C.BUTTON_COMMAND, 0, 1)
+//            C.elev_set_button_lamp(C.BUTTON_COMMAND, 0, 1)
             dummyElement.Floor = 0
             dummyElement.Direction = server.NONE
         }else if (C.elev_get_button_signal(C.BUTTON_CALL_UP,1) == 1){
@@ -273,7 +272,7 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
             dummyElement.Floor = 1
             dummyElement.Direction = server.DOWN
         }else if(C.elev_get_button_signal(C.BUTTON_COMMAND,1) == 1){
-            C.elev_set_button_lamp(C.BUTTON_COMMAND, 1, 1)
+//            C.elev_set_button_lamp(C.BUTTON_COMMAND, 1, 1)
             dummyElement.Floor = 1
             dummyElement.Direction = server.NONE
         }else if (C.elev_get_button_signal(C.BUTTON_CALL_UP,2) == 1){
@@ -283,14 +282,14 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
             dummyElement.Floor = 2
             dummyElement.Direction = server.DOWN
         }else if(C.elev_get_button_signal(C.BUTTON_COMMAND,2) == 1){
-            C.elev_set_button_lamp(C.BUTTON_COMMAND, 2, 1)
+//            C.elev_set_button_lamp(C.BUTTON_COMMAND, 2, 1)
             dummyElement.Floor = 2
             dummyElement.Direction = server.NONE
         }else if(C.elev_get_button_signal(C.BUTTON_CALL_DOWN,3) == 1){
             dummyElement.Floor = 3
             dummyElement.Direction = server.DOWN
         }else if(C.elev_get_button_signal(C.BUTTON_COMMAND,3) == 1){
-            C.elev_set_button_lamp(C.BUTTON_COMMAND, 3, 1)
+//            C.elev_set_button_lamp(C.BUTTON_COMMAND, 3, 1)
             dummyElement.Floor = 3
             dummyElement.Direction = server.NONE
         }else{
@@ -325,22 +324,26 @@ func readButtons (ChanToServer chan<- server.ServerMsg){
     }
 }
 
-func switchLights(ChanFromRedundancy <-chan *list.List){
+func switchLights(ChanFromRedundancy <-chan *list.List, ChanToServer chan<- server.ServerMsg){
 
     var actual_sensor int
     var GlobalLights *list.List
+    var GotoQueue *list.List
+    
+    var MsgToServer server.ServerMsg
+    ChanToServer_Hardware_Queue := make(chan *list.List)
+    
 
     //Switch either on or off the top button lights depending on the information from Redundancy
-    //Read array
-    //Switch top buttons lights
+    //Switch local light depending on our GotoQueue
     
     for{
         select{
             case GlobalLights =<- ChanFromRedundancy:
-            	//fmt.Println("HW_ Turning button lights ON")
+
                 //Every time that you receive a message from the Redundancy module, then...
                 //NB The redundancy module sends us a message every 200ms               
-                //First switch off all the button lamps
+                //First switch off all the lamps
                 if (DEBUG){fmt.Println("HW_ light routine")}
                 for i := 0; i < server.FLOORS; i++{
                     if (i != 0){
@@ -348,7 +351,8 @@ func switchLights(ChanFromRedundancy <-chan *list.List){
                     }
                     if (i != (server.FLOORS -1)){
                     	C.elev_set_button_lamp(C.BUTTON_CALL_UP, C.int(i), 0)                    
-                    }                    
+                    }
+                    C.elev_set_button_lamp(C.BUTTON_COMMAND, C.int(i), 0)
                 }
                 
                 //Second, switch on the lamps from the elements on the Global Lights queue
@@ -360,7 +364,22 @@ func switchLights(ChanFromRedundancy <-chan *list.List){
                     }else if (e.Value.(server.ElementQueue).Direction == server.DOWN){
                         C.elev_set_button_lamp(C.BUTTON_CALL_DOWN, C.int(e.Value.(server.ElementQueue).Floor), 1)
                     }
-                }   
+                }
+                
+                //Read the go to queue and switch on local lights
+                MsgToServer.Cmd = server.CMD_READ_ALL
+                MsgToServer.QueueID = server.ID_GOTOQUEUE
+                MsgToServer.ChanVal = nil
+                MsgToServer.ChanQueue = ChanToServer_Hardware_Queue
+               
+                ChanToServer <- MsgToServer
+	            GotoQueue =<- ChanToServer_Hardware_Queue
+	            
+	            for e := GotoQueue.Front(); e != nil; e = e.Next(){      
+                    if (e.Value.(server.ElementQueue).Direction == server.NONE){
+                        C.elev_set_button_lamp(C.BUTTON_COMMAND, C.int(e.Value.(server.ElementQueue).Floor), 1)
+                    }
+                }
 
                 //Read the actual sensor and turn on the floor indicator
                 actual_sensor = int (C.elev_get_floor_sensor_signal())

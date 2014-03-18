@@ -111,7 +111,6 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 
                 //Code for sending the GlobalLights list to Hardware module
                 //Reset list for top buttons lights
-				//fmt.Println("RD_ Init global lights")
                 GlobalLights.Init()
                 
                 if(DEBUG){
@@ -120,7 +119,6 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 					fmt.Println("RD_ ----------- Global Lights")
 				}
 
-                //Set according lights if floor is in GotoQueue
                 //Now we have to look on all the GotoQueues of all participants
                 //For all the elements which its direction is not server.NONE
                 //And add them to the GlobalLights list
@@ -130,7 +128,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                         if h.Value.(server.ElementQueue).Direction != server.NONE{
                             GlobalLights.PushBack(h.Value.(server.ElementQueue))
                         }
-                        //fmt.Println(h.Value.(server.ElementQueue))
+                        if(DEBUG){ fmt.Println(h.Value.(server.ElementQueue)) }
                     }
                 }
 

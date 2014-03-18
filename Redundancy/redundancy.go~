@@ -22,7 +22,6 @@ const TIMEOUT = 1000*time.Millisecond
 type Participant struct{
     IPsender string
     GotoQueue *list.List
-    MoveQueue *list.List
     ActualPos int
     Timestamp time.Time
     AckResponse bool
@@ -64,7 +63,6 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
             	//Add other elevator on the system to the participants table
                 NewParticipant.IPsender = NetworkMsg.IDsender
                 NewParticipant.GotoQueue = arrayToList(NetworkMsg.GotoQueue,NetworkMsg.SizeGotoQueue)
-                NewParticipant.MoveQueue = arrayToList(NetworkMsg.MoveQueue,NetworkMsg.SizeMoveQueue)
                 NewParticipant.ActualPos = NetworkMsg.ActualPos
                 NewParticipant.Timestamp = time.Now()
                 NewParticipant.AckResponse = false
@@ -113,7 +111,6 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 
                 //Code for sending the GlobalLights list to Hardware module
                 //Reset list for top buttons lights
-				//fmt.Println("RD_ Init global lights")
                 GlobalLights.Init()
                 
                 if(DEBUG){
@@ -122,7 +119,6 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 					fmt.Println("RD_ ----------- Global Lights")
 				}
 
-                //Set according lights if floor is in GotoQueue
                 //Now we have to look on all the GotoQueues of all participants
                 //For all the elements which its direction is not server.NONE
                 //And add them to the GlobalLights list
@@ -132,7 +128,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                         if h.Value.(server.ElementQueue).Direction != server.NONE{
                             GlobalLights.PushBack(h.Value.(server.ElementQueue))
                         }
-                        //fmt.Println(h.Value.(server.ElementQueue))
+                        if(DEBUG){ fmt.Println(h.Value.(server.ElementQueue)) }
                     }
                 }
 
@@ -149,11 +145,9 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
     ChanToServer_Redun_Queue := make(chan *list.List)
 
     var GotoQueue *list.List
-    var MoveQueue *list.List
     var TempQueue *list.List
     var ActualPos int
     GotoQueue = list.New()
-    MoveQueue = list.New()
     ActualPos = -1
 
     //Dummy variable for reading the actual position from the server
@@ -172,10 +166,7 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
     MsgToNetwork.IDsender = "dummy"  //Filled out by network module
     MsgToNetwork.IDreceiver = "Broadcast"
     MsgToNetwork.MsgType = network.STATUS
-    MsgToNetwork.SizeGotoQueue = 0
-    MsgToNetwork.SizeMoveQueue = 0
     MsgToNetwork.GotoQueue = buf
-    MsgToNetwork.MoveQueue = buf
     MsgToNetwork.ActualPos = 0
 
 
@@ -198,15 +189,6 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
                 fmt.Print(time.Now()," RD_ GotoQueue read from Server: ")
                 printList(GotoQueue)
 
-                // Get Movequeue
-                MsgToServer.QueueID = server.ID_MOVEQUEUE
-
-                ChanToServer <- MsgToServer
-                TempQueue =<- ChanToServer_Redun_Queue
-
-                MoveQueue.Init()
-                MoveQueue.PushBackList(TempQueue)
-
                 // Get Actual Position
                 MsgToServer.QueueID = server.ID_ACTUAL_POS
 
@@ -217,9 +199,6 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
                 // Build network message
                 MsgToNetwork.SizeGotoQueue = GotoQueue.Len()
                 MsgToNetwork.GotoQueue = listToArray(GotoQueue)
-
-                MsgToNetwork.SizeMoveQueue = MoveQueue.Len()
-                MsgToNetwork.MoveQueue = listToArray(MoveQueue)
 
                 MsgToNetwork.ActualPos = ActualPos
 
@@ -283,8 +262,6 @@ func printParticipantsList(listToPrint *list.List){
     for e := listToPrint.Front(); e != nil; e = e.Next(){    
         fmt.Printf("%s GOTO:",e.Value.(Participant).IPsender)
 		printListNobreak(e.Value.(Participant).GotoQueue)
-        fmt.Printf(" MOVE:")
-   		printListNobreak(e.Value.(Participant).MoveQueue)
         fmt.Printf(" ACTUAL:%d TIME:%s\n",e.Value.(Participant).ActualPos, e.Value.(Participant).Timestamp.Format(LAYOUT_TIME))
     }
 }

@@ -620,7 +620,7 @@ func slave (ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan network
 	    				if(DEBUG){fmt.Println("DS_ SLAVE LastAck", time.Now())}
     					return STANDBY_ST    					
     				default:
-    					fmt.Println("DC_ Being SLAVE and received a ACK Message... Something Wrong", time.Now())
+    					if(DEBUG){ fmt.Println("DC_ Being SLAVE and received a ACK Message... Something Wrong", time.Now()) }
     			}    			
 			case <-timeout_req_from_master:
 				//If the timeout expired, the something is wrong with the master as it has taken more than 1 second			
@@ -703,17 +703,18 @@ func printList(listToPrint *list.List){
 func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueue) bool {
 	var ActualDirection int
     
-    // check if there is any element in the queue
+    // check if the queue is empty, if so then just add the element
     if List.Front() == nil {
         List.PushBack(NewElement)
-        fmt.Println("Fit local: only element")
+        if(DEBUG){ fmt.Println("Fit local: only element") }
         return true
     }
 
 	// check if Element already in list
 	for e := List.Front(); e != nil; e = e.Next(){
         if e.Value.(server.ElementQueue).Floor == NewElement.Floor {
-            fmt.Println("Fit local: already in list")
+            List.InsertAfter(NewElement,e)
+            if(DEBUG){ fmt.Println("Fit local: already in list, element inserted after the one with the same floor") }
             return true
         }
     }
@@ -727,7 +728,7 @@ func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueu
            for e := List.Front(); e != nil; e = e.Next(){
                 if e.Value.(server.ElementQueue).Floor > NewElement.Floor {
                     List.InsertBefore(NewElement,e)
-                    fmt.Println("Fit local: up, inserted before")
+                    if(DEBUG){ fmt.Println("Fit local: up, inserted before") }
                     return true
                 }
                 
@@ -736,7 +737,7 @@ func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueu
                     return true
                 }else if (e.Next().Value.(server.ElementQueue).Floor < e.Value.(server.ElementQueue).Floor) {
                     List.InsertAfter(NewElement,e)
-                    fmt.Println("Fit local: up, inserted after (turning point)")
+                    if(DEBUG){ fmt.Println("Fit local: up, inserted after (turning point)") }
                     return true
                 }
             }
@@ -744,7 +745,7 @@ func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueu
             for e := List.Back(); e != nil; e = e.Prev(){
                 if e.Value.(server.ElementQueue).Floor > NewElement.Floor {
                     List.InsertAfter(NewElement,e)
-                    fmt.Println("Fit local: up, changed direction inserted after")
+                    if(DEBUG){ fmt.Println("Fit local: up, changed direction inserted after") }
                     return true
                 }
             }
@@ -755,7 +756,7 @@ func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueu
            for e := List.Front(); e != nil; e = e.Next(){
                 if e.Value.(server.ElementQueue).Floor < NewElement.Floor {
                     List.InsertBefore(NewElement,e)
-                    fmt.Println("Fit local: down, inserted before")
+                    if(DEBUG){ fmt.Println("Fit local: down, inserted before") }
                     return true
                 }
                 if e.Next() == nil{
@@ -763,7 +764,7 @@ func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueu
                     return true
                 } else if (e.Next().Value.(server.ElementQueue).Floor > e.Value.(server.ElementQueue).Floor) {
                     List.InsertAfter(NewElement,e)
-                    fmt.Println("Fit local: down, inserted after (turning point)")
+                    if(DEBUG){ fmt.Println("Fit local: down, inserted after (turning point)") }
                     return true
                 }
             }
@@ -771,7 +772,7 @@ func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueu
             for e := List.Back(); e != nil; e = e.Prev(){
                 if e.Value.(server.ElementQueue).Floor < NewElement.Floor {
                     List.InsertAfter(NewElement,e)
-                    fmt.Println("Fit local: down, changed direction inserted after")
+                    if(DEBUG){ fmt.Println("Fit local: down, changed direction inserted after") }
                     return true
                 }
             }
@@ -792,13 +793,13 @@ func fitInQueue(List *list.List,ActualPos int,NewElement server.ElementQueue) bo
         for e := List.Back(); e != nil; e = e.Prev(){
             if e.Value.(server.ElementQueue).Floor < NewElement.Floor {
                 List.InsertAfter(NewElement,e)
-                fmt.Println("Fit: up, inserted after")
+                if(DEBUG){ fmt.Println("Fit: up, inserted after") }
                 return true
             }
         }
         if ActualPos < NewElement.Floor {
             List.InsertBefore(NewElement,List.Front())
-            fmt.Println("Fit: up, inserted in beginning")
+            if(DEBUG){ fmt.Println("Fit: up, inserted in beginning") }
             return true
         }
     // else go down
@@ -806,13 +807,13 @@ func fitInQueue(List *list.List,ActualPos int,NewElement server.ElementQueue) bo
         for e := List.Back(); e != nil; e = e.Prev(){
             if e.Value.(server.ElementQueue).Floor > NewElement.Floor {
                 List.InsertAfter(NewElement,e)
-                fmt.Println("Fit: down, inserted after")
+                if(DEBUG){ fmt.Println("Fit: down, inserted after") }
                 return true
             }
         }        
         if ActualPos > NewElement.Floor {
             List.InsertBefore(NewElement,List.Front())
-            fmt.Println("Fit: down, inserted in beginning")
+            if(DEBUG){ fmt.Println("Fit: down, inserted in beginning") }
             return true
         }
 

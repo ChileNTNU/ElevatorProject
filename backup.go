@@ -8,6 +8,7 @@ import (
     "encoding/gob"      //For enconding message to send to the backup
     "net"
     "time"
+    "./Network"         //For receiving the message from the main program
 )
 
 const PORT_MAIN = ":20100"
@@ -15,10 +16,10 @@ const DEBUG = true
 
 func main() {
     
-	var MainPID int
+	var AliveData network.Message
     var KillCmd *exec.Cmd
     var SpawnCmd *exec.Cmd
-    Channel := make(chan int)
+    Channel := make(chan network.Message)
     ChanErr := make(chan int)
     var err error
     Timeout := 0
@@ -38,8 +39,8 @@ func main() {
     time.Sleep(1*time.Second)
     for Timeout < 5 {
         select{
-            case MainPID = <- Channel:
-                if(DEBUG){ fmt.Println("BKUP_ Message received from main ", MainPID) }
+            case AliveData = <- Channel:
+                if(DEBUG){ fmt.Println("BKUP_ Message received from main ", AliveData) }
                 Timeout = 0
             case <- ChanErr:
                 if(DEBUG){ fmt.Println("BKUP_ Error received from network") }
@@ -50,10 +51,10 @@ func main() {
     }
     Timeout = 0
     ConnStatusListen.Close()
-    if(DEBUG){ fmt.Println("BKUP_ Main DEAD", MainPID) }
+    if(DEBUG){ fmt.Println("BKUP_ Main DEAD", AliveData) }
 
     //Make sure the primary is dead
-    PIDstring :=  strconv.Itoa(MainPID)
+    PIDstring :=  strconv.Itoa(AliveData.ActualPos)
     cmdString := "kill "+PIDstring
     KillCmd = exec.Command("mate-terminal", "-e" ,cmdString)
     err = KillCmd.Start()
@@ -71,20 +72,20 @@ func main() {
     if(DEBUG){ fmt.Println("BKUP_ Backup done") }
 }
 
-func ListenerAlive(ConnAlive *net.UDPConn, Channel chan<-int, ChanErr chan <-int){
+func ListenerAlive(ConnAlive *net.UDPConn, Channel chan<-network.Message, ChanErr chan <-int){
 
-	var PIDreceived int
+	var AliveMessage network.Message
 	
     for {
         ConnAlive.SetReadDeadline(time.Now().Add(1*time.Second))
 	    //Create decoder
 		dec := gob.NewDecoder(ConnAlive)
 		//Receive message on connection
-		err := dec.Decode(&PIDreceived)
+		err := dec.Decode(&AliveMessage)
 		check(err)
         if(err == nil){
-		    if(DEBUG){ fmt.Println("BKUP_ RecvStatus:",PIDreceived) }
-		    Channel <-PIDreceived
+		    if(DEBUG){ fmt.Println("BKUP_ RecvStatus:",AliveMessage) }
+		    Channel <-AliveMessage
         }else{        
             ChanErr <- 1
             time.Sleep(2*time.Second)            

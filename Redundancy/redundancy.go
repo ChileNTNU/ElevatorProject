@@ -8,16 +8,10 @@ import(
     "time"
 )
 
-/*
-TODO
-- Channel to Dec
-*/
 const DEBUG = true
 const LAYOUT_TIME = "15:04:05.000 "
 
-//EAGM Change timeout to 1000ms. Debug 2000ms
 const TIMEOUT = 1000*time.Millisecond
-
 
 type Participant struct{
     IPsender string
@@ -37,13 +31,13 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 
     var NetworkMsg network.Message
     var ServerMsg server.ServerMsg
-    
+
     var TempElement *list.Element
     var TempQueue *list.List
     TempQueue = list.New()
-    
+
     var TableReq TableReqMessage
-    
+
     //New list which will contain all the buttons light
     var GlobalLights *list.List
     GlobalLights = list.New()
@@ -66,20 +60,20 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 NewParticipant.ActualPos = NetworkMsg.ActualPos
                 NewParticipant.Timestamp = time.Now()
                 NewParticipant.AckResponse = false
-                
+
                 TempElement = partOfParticipantList(ParticipantsList,NewParticipant.IPsender)
                 if TempElement != nil{
                     ParticipantsList.Remove(TempElement)
                 }
                 ParticipantsList.PushBack(NewParticipant)
-                
+
             //If you receive a message from the Decision module, then send him the participants table
             case TableReq =<- ChanFromDec:
                 // TAF debug
                 fmt.Print(time.Now(), "RD_ Send Participant to Dec: ")
                 printParticipantsList(ParticipantsList)
             	TableReq.ChanQueue <- ParticipantsList
-            
+
             case <- timeout:
                 // go through list and check if someone timed out
                 for e := ParticipantsList.Front(); e != nil; e = e.Next(){
@@ -94,7 +88,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
 								TempQueue.PushBack(e.Value.(server.ElementQueue))
 							}
 						}
-						
+
                         ServerMsg.Cmd = server.CMD_ATTACH
                         ServerMsg.QueueID = server.ID_REQQUEUE
                         //ServerMsg.Value = 0  //It is not needed the actual position for attaching to the reqQueue
@@ -112,7 +106,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                 //Code for sending the GlobalLights list to Hardware module
                 //Reset list for top buttons lights
                 GlobalLights.Init()
-                
+
                 if(DEBUG){
 	   				fmt.Println("RD_ ----------- Participants list")
 		            printParticipantsList(ParticipantsList)
@@ -153,9 +147,9 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
     //Dummy variable for reading the actual position from the server
     var dummyActualPos server.ElementQueue
     dummyActualPos.Direction = server.NONE
-    
+
     //for initializing network message, empty array of ElementQueue
-    buf := []server.ElementQueue {{0,0}}  
+    buf := []server.ElementQueue {{0,0}}
 
     var MsgToServer server.ServerMsg
     MsgToServer.Cmd = server.CMD_READ_ALL
@@ -185,7 +179,7 @@ func SendStatus(ChanToNetwork chan<- network.Message, ChanToServer chan<- server
 
                 GotoQueue.Init()
                 GotoQueue.PushBackList(TempQueue)
-                
+
                 fmt.Print(time.Now()," RD_ GotoQueue read from Server: ")
                 printList(GotoQueue)
 
@@ -241,25 +235,25 @@ func partOfParticipantList(List *list.List, IP string) *list.Element {
 }
 
 
-func printList(listToPrint *list.List){      
-    for e := listToPrint.Front(); e != nil; e = e.Next(){    
+func printList(listToPrint *list.List){
+    for e := listToPrint.Front(); e != nil; e = e.Next(){
         fmt.Printf("F%d,D%d ->",e.Value.(server.ElementQueue).Floor, e.Value.(server.ElementQueue).Direction)
-    }  
+    }
     fmt.Println("")
 }
 
 
-func printListNobreak(listToPrint *list.List){      
+func printListNobreak(listToPrint *list.List){
 	if (listToPrint != nil){
 	    for e := listToPrint.Front(); e != nil; e = e.Next(){
         fmt.Printf("F%d,D%d ->",e.Value.(server.ElementQueue).Floor, e.Value.(server.ElementQueue).Direction)
-    	}  
+    	}
 	}
 }
 
 
-func printParticipantsList(listToPrint *list.List){      
-    for e := listToPrint.Front(); e != nil; e = e.Next(){    
+func printParticipantsList(listToPrint *list.List){
+    for e := listToPrint.Front(); e != nil; e = e.Next(){
         fmt.Printf("%s GOTO:",e.Value.(Participant).IPsender)
 		printListNobreak(e.Value.(Participant).GotoQueue)
         fmt.Printf(" ACTUAL:%d TIME:%s\n",e.Value.(Participant).ActualPos, e.Value.(Participant).Timestamp.Format(LAYOUT_TIME))

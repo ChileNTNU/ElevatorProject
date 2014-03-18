@@ -4,7 +4,7 @@ import(
     "fmt"
     "time"
     "os/exec"
-    "container/list"   //For using lists        
+    "container/list"   //For using lists
     "./Network"
     "./Server"
     "./Redundancy"
@@ -18,7 +18,7 @@ func main(){
 	//Start back up
     cmd := exec.Command("mate-terminal", "-e" ,"go run backup.go")
     cmd.Start();
-    
+
     // Channels for NetworkManager
     Chan_Network_Decision := make(chan network.Message,100)
     Chan_Decision_Network := make(chan network.Message,100)
@@ -33,7 +33,7 @@ func main(){
 
     // Channel for Hardware
     Chan_Redun_Hardware := make(chan *list.List)
-    
+
     // Channel for Redundancy
     Chan_Decision_Redun := make (chan redundancy.TableReqMessage)
 
@@ -48,6 +48,4 @@ func main(){
         //fmt.Println("MN_ Doing something else")
         time.Sleep(5000 * time.Millisecond)
     }
-
 }
-

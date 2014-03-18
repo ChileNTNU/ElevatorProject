@@ -15,7 +15,7 @@ const PORT_MAIN = ":20100"
 const DEBUG = true
 
 func main() {
-    
+
 	var AliveData network.Message
     var KillCmd *exec.Cmd
     var SpawnCmd *exec.Cmd
@@ -23,17 +23,17 @@ func main() {
     ChanErr := make(chan int)
     var err error
     Timeout := 0
-    
+
     //Wait for the main to start up
     time.Sleep(1*time.Second)
-    
+
     //Resolve address to listen
 	LocalAddrStatus,err := net.ResolveUDPAddr("udp4", PORT_MAIN)
 	check(err)
 
 	//Make connection for listening
 	ConnStatusListen,err := net.ListenUDP("udp4",LocalAddrStatus)
-	check(err)    
+	check(err)
 
 	go ListenerAlive(ConnStatusListen,Channel, ChanErr)
     time.Sleep(1*time.Second)
@@ -44,7 +44,7 @@ func main() {
                 Timeout = 0
             case <- ChanErr:
                 if(DEBUG){ fmt.Println("BKUP_ Error received from network") }
-                Timeout++ 
+                Timeout++
         }
         if(DEBUG){ fmt.Println("Tick ", Timeout) }
 //        time.Sleep(1*time.Second)
@@ -66,7 +66,7 @@ func main() {
     SpawnCmd = exec.Command("mate-terminal", "-e" ,cmdString)
     err = SpawnCmd.Start()
     check(err)
-  
+
     //Wait for the commands to be executed, otherwise if you finish before the commands get discarded
     time.Sleep(200*time.Millisecond)
     if(DEBUG){ fmt.Println("BKUP_ Backup done") }
@@ -75,7 +75,7 @@ func main() {
 func ListenerAlive(ConnAlive *net.UDPConn, Channel chan<-network.Message, ChanErr chan <-int){
 
 	var AliveMessage network.Message
-	
+
     for {
         ConnAlive.SetReadDeadline(time.Now().Add(1*time.Second))
 	    //Create decoder
@@ -86,9 +86,9 @@ func ListenerAlive(ConnAlive *net.UDPConn, Channel chan<-network.Message, ChanEr
         if(err == nil){
 		    if(DEBUG){ fmt.Println("BKUP_ RecvStatus:",AliveMessage) }
 		    Channel <-AliveMessage
-        }else{        
+        }else{
             ChanErr <- 1
-            time.Sleep(2*time.Second)            
+            time.Sleep(2*time.Second)
         }
     }
 }

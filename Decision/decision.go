@@ -3,11 +3,11 @@ package decision
 import(
     "fmt"
     "time"
-    "os"
+    //"os"
     "container/list"   //For using lists
+	".././Redundancy"
     ".././Network"
     ".././Server"
-    ".././Redundancy"
     "strings"
     "strconv"
 )
@@ -49,6 +49,9 @@ func DecisionManager(ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-cha
 	var MsgToServer server.ServerMsg
 
 	fmt.Println("DS_ Decision module started!")
+	
+	//Wait 2 seconds until all the variables get read 
+	time.Sleep(4000*time.Millisecond)
 
 	//Tick for check if the ReqQueue is empty
 	timeout := time.Tick(200*time.Millisecond)
@@ -238,7 +241,7 @@ For_loop_RESPONSE_ACK:
                 		//Wait until you have received all ACK from slaves
                 		case MsgFromNetwork =<- ChanFromNetwork:
                 			if(MsgFromNetwork.MsgType == network.ACK){
-								ParticipantElement = partOfParticipantList(ParticipantsList, MsgFromNetwork.IDsender)
+								ParticipantElement = redundancy.PartOfParticipantList(ParticipantsList, MsgFromNetwork.IDsender)
 								if (ParticipantElement != nil){
 									dummyParticipant = ParticipantElement.Value.(redundancy.Participant)
 						            dummyParticipant.AckResponse = true
@@ -284,7 +287,7 @@ For_loop_RESPONSE_ACK:
                             TargetParticipant = "Local"
                             if(DEBUG){
                             	fmt.Println("DS_ Request put in own queue")
-                                printList(e.Value.(redundancy.Participant).GotoQueue)
+                                redundancy.PrintList(e.Value.(redundancy.Participant).GotoQueue)
                             }
 						}
 		            }
@@ -395,7 +398,7 @@ For_loop_RESPONSE_ACK:
                         }
 		            }
 		            if(DEBUG){fmt.Println("DS_ Get Participant from table", TargetParticipant)}
-                    ParticipantElement = partOfParticipantList(ParticipantsList,TargetParticipant)
+                    ParticipantElement = redundancy.PartOfParticipantList(ParticipantsList,TargetParticipant)
                     // and add the new request to its queue
    		            if(DEBUG){fmt.Println("DS_ Insert element in gotoqueue")}
                     ParticipantElement.Value.(redundancy.Participant).GotoQueue.PushBack(dummyElement)
@@ -405,7 +408,7 @@ For_loop_RESPONSE_ACK:
 
         DecisionDone:
                 // Get participant that gets the new Gotoqueue
-                ParticipantElement = partOfParticipantList(ParticipantsList,TargetParticipant)
+                ParticipantElement = redundancy.PartOfParticipantList(ParticipantsList,TargetParticipant)
 
                 // Send new Gotoqueue over network if the request was not in any queue already and was not put in you own queue
                 if(ElementInAnyQueue == false && TargetParticipant != "Local"){
@@ -432,7 +435,7 @@ For_loop_RESPONSE_ACK:
 					MsgToNetwork.MsgType = network.CMD
 					MsgToNetwork.SizeGotoQueue = ParticipantElement.Value.(redundancy.Participant).GotoQueue.Len()
 					//MsgToNetwork.SizeMoveQueue = 0
-					MsgToNetwork.GotoQueue = listToArray(ParticipantElement.Value.(redundancy.Participant).GotoQueue)
+					MsgToNetwork.GotoQueue = redundancy.ListToArray(ParticipantElement.Value.(redundancy.Participant).GotoQueue)
 					//MsgToNetwork.MoveQueue = buf
 					//MsgToNetwork.ActualPos = 0
 					ChanToNetwork <- MsgToNetwork
@@ -444,7 +447,7 @@ For_loop_RESPONSE_ACK:
                     	select{
                     		case MsgFromNetwork =<- ChanFromNetwork:
                     			if(MsgFromNetwork.MsgType == network.ACK){
-							        ParticipantElement = partOfParticipantList(ParticipantsList, MsgFromNetwork.IDsender)
+							        ParticipantElement = redundancy.PartOfParticipantList(ParticipantsList, MsgFromNetwork.IDsender)
 							        if (ParticipantElement != nil && ParticipantElement.Value.(redundancy.Participant).IPsender == TargetParticipant){
 								        dummyParticipant = ParticipantElement.Value.(redundancy.Participant)
 					                    dummyParticipant.AckResponse = true
@@ -581,7 +584,7 @@ func slave (ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan network
 						ChanToNetwork <- MsgToNetwork
     				case network.CMD:
 	    				if(DEBUG){fmt.Println("DS_ SLAVE Cmd", time.Now())}
-    					TempList = arrayToList(MsgFromNetwork.GotoQueue, MsgFromNetwork.SizeGotoQueue)
+    					TempList = redundancy.ArrayToList(MsgFromNetwork.GotoQueue, MsgFromNetwork.SizeGotoQueue)
     					GotoQueue.Init()
     					GotoQueue.PushBackList(TempList)
 
@@ -627,67 +630,13 @@ func LocalIPgreater (LocalIP string, OtherIP string) bool {
 
     LocalIPtmp := strings.SplitN(LocalIP,".",4)
     LocalIPnum,err = strconv.Atoi(LocalIPtmp[3])
-    check(err)
+    network.Check(err)
 
     RemoteIPtmp := strings.SplitN(OtherIP,".",4)
     RemoteIPnum,err = strconv.Atoi(RemoteIPtmp[3])
-    check(err)
+    network.Check(err)
 
 	return (LocalIPnum>RemoteIPnum)
-}
-
-func listToArray(Queue *list.List) [] server.ElementQueue {
-    var index int = 0
-    buf := make([] server.ElementQueue, Queue.Len())
-
-    for e := Queue.Front(); e != nil; e = e.Next(){
-        buf[index] = e.Value.(server.ElementQueue)
-        index++
-    }
-    return buf
-}
-
-func arrayToList(array [] server.ElementQueue, size int) *list.List {
-    var List *list.List
-    List = list.New()
-
-    for i:= 0; i < size; i++{
-        List.PushBack(array[i])
-    }
-
-    return List
-}
-
-func partOfParticipantList(List *list.List, IP string) *list.Element {
-    for e := List.Front(); e != nil; e = e.Next(){
-        if e.Value.(redundancy.Participant).IPsender == IP {
-            return e
-        }
-    }
-    return nil
-}
-
-func printParticipantsList(listToPrint *list.List){
-    for e := listToPrint.Front(); e != nil; e = e.Next(){
-        fmt.Printf("%s GOTO:",e.Value.(redundancy.Participant).IPsender)
-		printListNobreak(e.Value.(redundancy.Participant).GotoQueue)
-        fmt.Printf(" ACTUAL:%d TIME:%s\n",e.Value.(redundancy.Participant).ActualPos, e.Value.(redundancy.Participant).Timestamp.Format(LAYOUT_TIME))
-    }
-}
-
-func printListNobreak(listToPrint *list.List){
-	if (listToPrint != nil){
-	    for e := listToPrint.Front(); e != nil; e = e.Next(){
-        fmt.Printf("F%d,D%d ->",e.Value.(server.ElementQueue).Floor, e.Value.(server.ElementQueue).Direction)
-    	}
-	}
-}
-
-func printList(listToPrint *list.List){
-    for e := listToPrint.Front(); e != nil; e = e.Next(){
-        fmt.Printf("F%d,D%d ->",e.Value.(server.ElementQueue).Floor, e.Value.(server.ElementQueue).Direction)
-    }
-    fmt.Println("")
 }
 
 func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueue) bool {
@@ -703,13 +652,15 @@ func fitInQueueLocal(List *list.List,ActualPos int,NewElement server.ElementQueu
 	// check if Element already in list
 	for e := List.Front(); e != nil; e = e.Next(){
         if e.Value.(server.ElementQueue).Floor == NewElement.Floor {
-            List.InsertAfter(NewElement,e)
-            if(DEBUG){ fmt.Println("Fit local: already in list, element inserted after the one with the same floor") }
+            if (e.Value.(server.ElementQueue).Direction != server.NONE) {
+            	List.InsertAfter(NewElement,e)
+	            if(DEBUG){ fmt.Println("Fit local: already in list, element inserted after the one with the same floor diff direction") }
+            }
             return true
         }
     }
 
-    // check direction you want to go
+    // check direction you are going
     ActualDirection = List.Front().Value.(server.ElementQueue).Floor - ActualPos
 
     // we want to go up
@@ -809,11 +760,4 @@ func fitInQueue(List *list.List,ActualPos int,NewElement server.ElementQueue) bo
 
     }
     return false
-}
-
-func check(err error){
-    if err != nil{
-        fmt.Fprintf(os.Stderr,time.Now().Format(LAYOUT_TIME))
-        fmt.Fprintf(os.Stderr,"NET_  Error: %s\n",err.Error())
-    }
 }

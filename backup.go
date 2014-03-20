@@ -9,6 +9,7 @@ import (
     "net"
     "time"
     "./Network"         //For receiving the message from the main program
+    "./Server"          //For accessing the parts of an elementQueue
 )
 
 const PORT_MAIN = ":20100"
@@ -37,7 +38,7 @@ func main() {
 
 	go ListenerAlive(ConnStatusListen,Channel, ChanErr)
     time.Sleep(1*time.Second)
-    for Timeout < 5 {
+    for Timeout < 3 {
         select{
             case AliveData = <- Channel:
                 if(DEBUG){ fmt.Println("BKUP_ Message received from main ", AliveData) }
@@ -61,8 +62,14 @@ func main() {
     check(err)
     if(DEBUG){ fmt.Println("BKUP_ Main KILLED") }
 
-    //Start primary with argument
+    //Start primary with arguments 
     cmdString = "go run main.go "
+    for i := 0; i < len(AliveData.GotoQueue); i++ {
+    	if(AliveData.GotoQueue[i].Direction == server.NONE){
+	    	cmdString = cmdString + strconv.Itoa(AliveData.GotoQueue[i].Floor)
+	    	cmdString = cmdString + " "
+    	}
+    }
     SpawnCmd = exec.Command("mate-terminal", "-e" ,cmdString)
     err = SpawnCmd.Start()
     check(err)

@@ -25,7 +25,7 @@ const NONE = 0
 
 
 const FLOORS = 4
-const DEBUG = true
+const DEBUG = false
 
 type ElementQueue struct{
    Floor int
@@ -41,7 +41,7 @@ type ServerMsg struct{
     ChanQueue chan *list.List   //Channel for sending back queue
 }
 
-func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardware <-chan ServerMsg){
+func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardware <-chan ServerMsg, Chan_Network <-chan ServerMsg){
 
     var MsgRecv ServerMsg
 
@@ -63,6 +63,8 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
    //Dummy variable for actual pos
     var dummyActualPos ElementQueue
     dummyActualPos.Direction = NONE
+    
+    fmt.Println("SR_ Server started")
 
     for{
         select{         //Select from whom is the message comming
@@ -72,6 +74,8 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
                 //fmt.Println("Message Decision:",MsgRecv)
             case MsgRecv = <- Chan_Hardware:
                 //fmt.Println("Message Hardware:",MsgRecv)
+            case MsgRecv = <- Chan_Network:
+                //fmt.Println("Message Network:",MsgRecv)
         }
 
         switch MsgRecv.QueueID{
@@ -172,9 +176,9 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
 
         if DEBUG{
             fmt.Print("SR_ Goto: ")
-            printList(GotoQueue)
+            PrintList(GotoQueue)
             fmt.Print("SR_ Req: ")
-            printList(ReqQueue)
+            PrintList(ReqQueue)
             fmt.Println("SR_ Actual:", ActualPos)
         }
     }
@@ -190,7 +194,7 @@ func partOfList(List *list.List, element ElementQueue) bool {
 }
 
 
-func printList(listToPrint *list.List){
+func PrintList(listToPrint *list.List){
     for e := listToPrint.Front(); e != nil; e = e.Next(){
         fmt.Printf("%d, %d ->",e.Value.(ElementQueue).Floor, e.Value.(ElementQueue).Direction)
     }

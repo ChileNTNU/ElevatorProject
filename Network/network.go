@@ -10,6 +10,7 @@ import(
     "time"              //This file is for the sleep time
     "runtime"           //Used for printing the line on the console
     ".././Server"       //Library for defining ElementQueue
+    //".././Redundancy"
 )
 
 const PORT_STATUS = ":20019"
@@ -24,7 +25,7 @@ const CMD       = 3
 const ACK       = 4
 const LAST_ACK  = 5
 
-const DEBUG = true
+const DEBUG = false
 const LAYOUT_TIME = "15:04:05.000"
 
 type Message struct{
@@ -48,15 +49,15 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 // UPD status
 	//Address from where we are going to listen for others status messages
 	LocalAddrStatus,err := net.ResolveUDPAddr("udp4",PORT_STATUS)
-	check(err)
+	Check(err)
 
     //Address to where we are going to send our status(BROADCAST)
 	RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","129.241.187.255"+PORT_STATUS)
-	check(err)
+	Check(err)
 
 	// Make connection for sending status
 	ConnStatusSend,err := net.DialUDP("udp4",nil,RemoteAddrStatus)
-	check(err)
+	Check(err)
 
 	// Create connection for listening (used for receive broadcast messages)
 	ConnStatusListen,err := net.ListenUDP("udp4",LocalAddrStatus)
@@ -69,7 +70,7 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 // UDP command
 	//Address from where we are going to listen to others Command messages
 	LocalAddrCmd,err := net.ResolveUDPAddr("udp4",PORT_CMD)
-	check(err)
+	Check(err)
 
     // connection for listening
     ConnCmd,err := net.ListenUDP("udp4",LocalAddrCmd)
@@ -82,11 +83,11 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 // UDP alive connection for backup program
 	//Resolve address to send, in this case our own address
 	LoopbackAlive,err := net.ResolveUDPAddr("udp4","127.0.0.1"+PORT_HEART_BIT)
-	check(err)
+	Check(err)
 
 	//Make connection for sending the loopback message
 	ConnAliveSend,err := net.DialUDP("udp4",nil,LoopbackAlive)
-	check(err)
+	Check(err)
 
 //Create go routines
     go ListenerStatus(ConnStatusListen,ChanToRedun)
@@ -96,8 +97,8 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 
     //Do nothing so that go routines are not terminated
     for {
-        SenderAlive(ConnAliveSend, MyPID, ChanToServer)
         time.Sleep(1000*time.Millisecond)
+        SenderAlive(ConnAliveSend, MyPID, ChanToServer)
     }
 }
 
@@ -108,6 +109,8 @@ func SenderAlive(ConnAlive *net.UDPConn, PID int, ChanToServer chan<- server.Ser
     ChanToServer_Network_ElementQueue := make(chan server.ElementQueue)
 
     var GotoQueue *list.List
+    var tempQueue *list.List
+    GotoQueue = list.New()
     var dummyActualPos server.ElementQueue
 
     var AliveNetwork Message
@@ -119,7 +122,8 @@ func SenderAlive(ConnAlive *net.UDPConn, PID int, ChanToServer chan<- server.Ser
     MsgToServer.ChanQueue = ChanToServer_Network_Queue
 
     ChanToServer <- MsgToServer
-    GotoQueue =<- ChanToServer_Network_Queue
+    tempQueue =<- ChanToServer_Network_Queue
+    GotoQueue.PushBackList(tempQueue)
 
 	//Read the actual position
     MsgToServer.Cmd = server.CMD_READ_ALL
@@ -135,7 +139,14 @@ func SenderAlive(ConnAlive *net.UDPConn, PID int, ChanToServer chan<- server.Ser
 	AliveNetwork = Message{}
 
 	//Add the actual position to the front of the GotoQueue so the new instance goes to the last floor the elevator was
-	GotoQueue.PushFront(dummyActualPos)
+	if(GotoQueue.Front() != nil){
+		if(GotoQueue.Front().Value.(server.ElementQueue) != dummyActualPos){
+			GotoQueue.PushFront(dummyActualPos)
+		}
+	}else{
+		GotoQueue.PushFront(dummyActualPos)
+	}
+
 
 	AliveNetwork.IDsender = "dummy"  //Filled out by network module
     AliveNetwork.IDreceiver = "dummy"
@@ -149,7 +160,7 @@ func SenderAlive(ConnAlive *net.UDPConn, PID int, ChanToServer chan<- server.Ser
 	enc := gob.NewEncoder(ConnAlive)
 	//Send encoded message on connection
 	err := enc.Encode(AliveNetwork)
-	check(err)
+	Check(err)
 	if(DEBUG){fmt.Println("NET_ Send alive message")}
 }
 
@@ -162,7 +173,7 @@ func ListenerStatus(conn *net.UDPConn,Channel chan<- Message){
             dec := gob.NewDecoder(conn)
             //Receive message on connection
             err := dec.Decode(&MsgRecv)
-            check(err)
+            Check(err)
 
 			//Check if the message you recevied it from you
 			if(MsgRecv.IDsender == LocalIP){
@@ -188,7 +199,7 @@ func ListenerCmd(conn *net.UDPConn,Channel chan<- Message){
             dec := gob.NewDecoder(conn)
             //Receive message on connection
             err := dec.Decode(&MsgRecv)
-            check(err)
+            Check(err)
 
             if(DEBUG){ fmt.Println("NET_ RecvCmd:",MsgRecv, time.Now()) }
 
@@ -212,7 +223,7 @@ func SenderStatus(ConnStatus *net.UDPConn, Channel <-chan Message){
         if(DEBUG){
             fmt.Println(err)
         }
-        check(err)
+        Check(err)
         if(DEBUG){fmt.Println("NET_ StatusSent:",MsgSend, time.Now())}
     }
 }
@@ -224,17 +235,17 @@ func SenderCmd(Channel <-chan Message){
         MsgSend.IDsender = LocalIP;
 
         RemoteAddrCmd,err := net.ResolveUDPAddr("udp4",MsgSend.IDreceiver+PORT_CMD)
-        check(err)
+        Check(err)
 
         // Make connection for sending
         ConnCmd,err := net.DialUDP("udp4",nil,RemoteAddrCmd)
-        check(err)
+        Check(err)
 
         //Create encoder
         enc := gob.NewEncoder(ConnCmd)
         //Send encoded message on connection
         err = enc.Encode(MsgSend)
-        check(err)
+        Check(err)
 
         //Close connection
         ConnCmd.Close()
@@ -254,9 +265,9 @@ func listToArray(Queue *list.List) [] server.ElementQueue {
     return buf
 }
 
-func check(err error){
+func Check(err error){
     if err != nil{
         fmt.Fprintf(os.Stderr,time.Now().Format(LAYOUT_TIME))
-        fmt.Fprintf(os.Stderr,"NET_  Error: %s\n",err.Error())
+        fmt.Fprintf(os.Stderr,"Error: %s\n",err.Error())
     }
 }

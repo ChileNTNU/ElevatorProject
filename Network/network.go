@@ -147,7 +147,6 @@ func SenderAlive(ConnAlive *net.UDPConn, PID int, ChanToServer chan<- server.Ser
 		GotoQueue.PushFront(dummyActualPos)
 	}
 
-
 	AliveNetwork.IDsender = "dummy"  //Filled out by network module
     AliveNetwork.IDreceiver = "dummy"
     AliveNetwork.MsgType = 0

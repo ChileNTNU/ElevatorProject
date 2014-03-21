@@ -151,7 +151,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
                 dummyElement =<- ChanToServer_Hardware_ElementQueue
                 target_floor = dummyElement.Floor
 
-                //If the go to queue is not empty
+                //If the go to queue is not empty and you are in a floor
                 if(target_floor != -1 && actual_sensor != -1){
                 	if (DEBUG){fmt.Println("HW_ Target: ", target_floor)}
 
@@ -171,6 +171,7 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
 				            direction_speed = NOT_MOVE
 				    }
 				    
+                    //Move to the floor that the gotoqueue first element says
 			        for (actual_sensor != target_floor){
 			        	C.elev_set_speed(C.int(direction_speed))
 			            time.Sleep(200*time.Millisecond)
@@ -224,7 +225,6 @@ func gotoFloor(ChanToServer chan<- server.ServerMsg){
 			        C.elev_set_door_open_lamp(C.int(1))
 			        time.Sleep(2000*time.Millisecond)
 			        C.elev_set_door_open_lamp(C.int(0))
-                
             }
         }
     }

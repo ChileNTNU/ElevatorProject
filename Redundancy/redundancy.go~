@@ -8,7 +8,7 @@ import(
     "time"
 )
 
-const DEBUG = false
+const DEBUG = true
 const LAYOUT_TIME = "15:04:05.000 "
 
 const TIMEOUT = 1000*time.Millisecond
@@ -53,7 +53,7 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
     for{
         select{
             case NetworkMsg =<- ChanFromNetwork:
-            	if(DEBUG){fmt.Println(time.Now()," RD_ GOT MSG FROM NETWORK")}
+            	if(DEBUG){fmt.Println("RD_ GOT MSG FROM NETWORK")}
             	//Add other elevator on the system to the participants table
                 NewParticipant.IPsender = NetworkMsg.IDsender
                 NewParticipant.GotoQueue = ArrayToList(NetworkMsg.GotoQueue,NetworkMsg.SizeGotoQueue)
@@ -71,12 +71,15 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
             case TableReq =<- ChanFromDec:
                 // TAF debug
                 if(DEBUG){ 
-                	fmt.Print("RD_ Send Participant to Dec: ") 
+                	fmt.Print("RD_ Send Participant to Decision module: \n----------") 
 	                printParticipantsList(ParticipantsList)
+	                fmt.Prinln("--------------")
 	            }
             	TableReq.ChanQueue <- ParticipantsList
 
             case <- timeout:
+            
+            	TempQueue.Init()
                 // go through list and check if someone timed out
                 for e := ParticipantsList.Front(); e != nil; e = e.Next(){
                     old_timestamp := e.Value.(Participant).Timestamp
@@ -97,7 +100,10 @@ func Redundancy(ChanToServer chan<- server.ServerMsg, ChanToNetwork chan<- netwo
                         ServerMsg.NewQueue = TempQueue
                         ServerMsg.ChanVal = nil
                         ServerMsg.ChanQueue = nil
-                       	if(DEBUG){fmt.Println("RD_ ************TIMEOUT************:",ServerMsg)}
+                       	if(DEBUG){
+                       		fmt.Println("RD_ ************TIMEOUT************:",ServerMsg, e.Value.(Participant).IPsender)
+                       		PrintList(TempQueue)
+                       	}
 
                         ChanToServer <- ServerMsg
 

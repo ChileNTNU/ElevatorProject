@@ -75,7 +75,7 @@ func Server(Chan_Redun <-chan ServerMsg, Chan_Dec <-chan ServerMsg, Chan_Hardwar
             case MsgRecv = <- Chan_Hardware:
                 //fmt.Println("Message Hardware:",MsgRecv)
             case MsgRecv = <- Chan_Network:
-                fmt.Println("Message Network:",MsgRecv)
+                //fmt.Println("Message Network:",MsgRecv)
         }
 
         switch MsgRecv.QueueID{

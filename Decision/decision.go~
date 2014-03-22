@@ -12,7 +12,7 @@ import(
     "strconv"
 )
 
-const DEBUG = false
+const DEBUG = true
 const LAYOUT_TIME = "15:04:05.000"
 
 //States for the Decision module. Go enums

@@ -618,7 +618,7 @@ func slave (ChanToServer chan<- server.ServerMsg, ChanFromNetwork <-chan network
 			case <-timeout_req_from_master:
 				//If the timeout expired, the something is wrong with the master as it has taken more than 1 second
 				if(DEBUG){fmt.Println("DS_ SLAVE Timeout", time.Now())}
-				return MASTER_ST
+				return STANDBY_ST
     	}
     }
 }

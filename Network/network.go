@@ -50,29 +50,21 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 	//Address from where we are going to listen for others status messages
 	LocalAddrStatus,err := net.ResolveUDPAddr("udp4",PORT_STATUS)
 	Check(err)
-
-    //Address to where we are going to send our status(BROADCAST)
-	RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","129.241.187.255"+PORT_STATUS)
-	Check(err)
-
-	// Make connection for sending status
-	ConnStatusSend,err := net.DialUDP("udp4",nil,RemoteAddrStatus)
-	Check(err)
-
-	// Create connection for listening (used for receive broadcast messages)
+	//Create connection for listening (used for receive broadcast messages)
 	ConnStatusListen,err := net.ListenUDP("udp4",LocalAddrStatus)
 
-	// find out own IP address
-	LocalIPaddr := ConnStatusSend.LocalAddr()
-	LocalIPtmp := strings.SplitN(LocalIPaddr.String(),":",2)
-	LocalIP = LocalIPtmp[0]
+	//Loopback address for sending to us our own status message
+	RemoteAddrStatusLoopback,err := net.ResolveUDPAddr("udp4","127.0.0.1"+PORT_STATUS)
+	Check(err)
+	//Make connection for sending status to ourself Loopback
+	ConnStatusSendLoopback,err := net.DialUDP("udp4",nil,RemoteAddrStatusLoopback)
+	Check(err)
 
 // UDP command
 	//Address from where we are going to listen to others Command messages
 	LocalAddrCmd,err := net.ResolveUDPAddr("udp4",PORT_CMD)
 	Check(err)
-
-    // connection for listening
+    //Connection for listening
     ConnCmd,err := net.ListenUDP("udp4",LocalAddrCmd)
 
     if(DEBUG){
@@ -84,7 +76,6 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 	//Resolve address to send, in this case our own address
 	LoopbackAlive,err := net.ResolveUDPAddr("udp4","127.0.0.1"+PORT_HEART_BIT)
 	Check(err)
-
 	//Make connection for sending the loopback message
 	ConnAliveSend,err := net.DialUDP("udp4",nil,LoopbackAlive)
 	Check(err)
@@ -92,7 +83,7 @@ func NetworkManager(ChanToDecision chan Message,ChanFromDecision chan Message,Ch
 //Create go routines
     go ListenerStatus(ConnStatusListen,ChanToRedun)
     go ListenerCmd(ConnCmd,ChanToDecision)
-    go SenderStatus(ConnStatusSend,ChanFromRedun)
+    go SenderStatus(ConnStatusSendLoopback,ChanFromRedun)
     go SenderCmd(ChanFromDecision)
 
     //Do nothing so that go routines are not terminated
@@ -166,26 +157,46 @@ func SenderAlive(ConnAlive *net.UDPConn, PID int, ChanToServer chan<- server.Ser
 func ListenerStatus(conn *net.UDPConn,Channel chan<- Message){
     var MsgRecv Message
     for {
-            //Reset the message because the decoder can not handle values ZERO
-            MsgRecv = Message {}
-            //Create decoder
-            dec := gob.NewDecoder(conn)
-            //Receive message on connection
-            err := dec.Decode(&MsgRecv)
-            Check(err)
+        //Reset the message because the decoder can not handle values ZERO
+        MsgRecv = Message {}
+        //Create decoder
+        dec := gob.NewDecoder(conn)
+        //Receive message on connection
+        err := dec.Decode(&MsgRecv)
+        Check(err)
 
-			//Check if the message you recevied it from you
-			if(MsgRecv.IDsender == LocalIP){
-				MsgRecv.IDsender = "Local"
-			}
+        //Address to where we are going to send our status(BROADCAST)
+        DummyAddress,err := net.ResolveUDPAddr("udp4","129.241.187.255"+PORT_STATUS)
+        Check(err)	        
+        // Make connection for sending status to others
+        DummyCon,err := net.DialUDP("udp4",nil,DummyAddress)
+        Check(err)
+    
+        if(DummyCon != nil){
+        
+            // find out own IP address
+            LocalIPaddr := DummyCon.LocalAddr()
+            LocalIPtmp := strings.SplitN(LocalIPaddr.String(),":",2)
+            LocalIP = LocalIPtmp[0]
 
-            if(DEBUG){fmt.Println("NET_ RecvStatus:",MsgRecv, time.Now())}
+            //Close connection
+            DummyCon.Close()
 
-            //Discard message if not status
-            //Even if it is your local IP send it to the redundancy so it adds it to the participants table
-            if(MsgRecv.MsgType == STATUS && err == nil){
-                Channel <-MsgRecv
-            }
+            fmt.Println("Message status received", LocalIP);
+
+		    //Check if the message you recevied it from you
+		    if(MsgRecv.IDsender == LocalIP){
+			    MsgRecv.IDsender = "Local"
+		    }
+        }
+        
+        if(DEBUG){fmt.Println("NET_ RecvStatus:",MsgRecv, time.Now())}
+
+        //Discard message if not status
+        //Even if it is your local IP send it to the redundancy so it adds it to the participants table
+        if(MsgRecv.MsgType == STATUS){
+            Channel <-MsgRecv
+        }
     }
 }
 
@@ -209,21 +220,53 @@ func ListenerCmd(conn *net.UDPConn,Channel chan<- Message){
     }
 }
 
-func SenderStatus(ConnStatus *net.UDPConn, Channel <-chan Message){
+func SenderStatus(ConnStatusLoopback *net.UDPConn, Channel <-chan Message){
     for{
         var MsgSend Message
         MsgSend = <-Channel
-        MsgSend.IDsender = LocalIP;
+        
+        //Address to where we are going to send our status(BROADCAST)
+	    RemoteAddrStatus,err := net.ResolveUDPAddr("udp4","129.241.187.255"+PORT_STATUS)
+	    Check(err)
+	    
+	    // Make connection for sending status to others
+	    ConnStatus,err := net.DialUDP("udp4",nil,RemoteAddrStatus)
+	    Check(err)
+        
+        if(ConnStatus != nil){
+	        
+	        // find out own IP address
+            LocalIPaddr := ConnStatus.LocalAddr()
+            LocalIPtmp := strings.SplitN(LocalIPaddr.String(),":",2)
+            LocalIP = LocalIPtmp[0]
+	
+            fmt.Println(LocalIP);
+            
+            MsgSend.IDsender = LocalIP;
+
+            //Create encoder
+            enc := gob.NewEncoder(ConnStatus)
+            //Send encoded message on connection
+            err := enc.Encode(MsgSend)
+            Check(err)
+            if(DEBUG){fmt.Println("NET_ StatusSent:",MsgSend, time.Now())}
+            
+            //Close connection
+            ConnStatus.Close()
+            
+        }else{
+            if(DEBUG){fmt.Println("NET_ Connection for SENDING Status message NIL",time.Now())}
+        }
+        
+        MsgSend.IDsender = "Local";
+        MsgSend.IDreceiver = "Loopback"
 
         //Create encoder
-        enc := gob.NewEncoder(ConnStatus)
+        enc := gob.NewEncoder(ConnStatusLoopback)
         //Send encoded message on connection
-        err := enc.Encode(MsgSend)
-        if(DEBUG){
-            fmt.Println(err)
-        }
+        err = enc.Encode(MsgSend)
         Check(err)
-        if(DEBUG){fmt.Println("NET_ StatusSent:",MsgSend, time.Now())}
+        if(DEBUG){fmt.Println("NET_ StatusSentLoopback:",MsgSend, time.Now())}
     }
 }
 
@@ -231,25 +274,35 @@ func SenderCmd(Channel <-chan Message){
     for{
         var MsgSend Message
         MsgSend =<-Channel
-        MsgSend.IDsender = LocalIP;
-
+        
         RemoteAddrCmd,err := net.ResolveUDPAddr("udp4",MsgSend.IDreceiver+PORT_CMD)
         Check(err)
 
         // Make connection for sending
         ConnCmd,err := net.DialUDP("udp4",nil,RemoteAddrCmd)
         Check(err)
+        
+        if(ConnCmd != nil){
+            // find out own IP address
+            LocalIPaddr := ConnCmd.LocalAddr()
+            LocalIPtmp := strings.SplitN(LocalIPaddr.String(),":",2)
+            LocalIP = LocalIPtmp[0]
+            
+            MsgSend.IDsender = LocalIP;
 
-        //Create encoder
-        enc := gob.NewEncoder(ConnCmd)
-        //Send encoded message on connection
-        err = enc.Encode(MsgSend)
-        Check(err)
+            //Create encoder
+            enc := gob.NewEncoder(ConnCmd)
+            //Send encoded message on connection
+            err = enc.Encode(MsgSend)
+            Check(err)
+            
+            //Close connection
+            ConnCmd.Close()
 
-        //Close connection
-        ConnCmd.Close()
-
-        if(DEBUG){fmt.Println("NET_ CmdSent   :",MsgSend, time.Now())}
+            if(DEBUG){fmt.Println("NET_ CmdSent   :",MsgSend, time.Now())}
+        }else{
+            if(DEBUG){fmt.Println("NET_ Connection for command message NIL",time.Now())}
+        }
     }
 }
 

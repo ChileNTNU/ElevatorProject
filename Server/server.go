@@ -25,7 +25,7 @@ const NONE = 0
 
 
 const FLOORS = 4
-const DEBUG = true
+const DEBUG = false
 
 type ElementQueue struct{
    Floor int

@@ -8,7 +8,7 @@ import(
     "time"
 )
 
-const DEBUG = true
+const DEBUG = false
 const LAYOUT_TIME = "15:04:05.000 "
 
 const TIMEOUT = 1000*time.Millisecond

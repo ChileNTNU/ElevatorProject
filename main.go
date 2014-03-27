@@ -42,10 +42,10 @@ func main(){
     }
 
     // Channels for NetworkManager
-    Chan_Network_Decision := make(chan network.Message,100)
-    Chan_Decision_Network := make(chan network.Message,100)
-    Chan_Network_Redun := make(chan network.Message,100)
-    Chan_Redun_Network := make(chan network.Message,100)
+    Chan_Network_Decision := make(chan network.Message,100)   //Change from buffered to unbuffered
+    Chan_Decision_Network := make(chan network.Message,100)  //Change from buffered to unbuffered
+    Chan_Network_Redun := make(chan network.Message,100)  //Change from buffered to unbuffered
+    Chan_Redun_Network := make(chan network.Message,100)  //Change from buffered to unbuffered
 
     // Channels for Server
     Chan_Redun_Server := make(chan server.ServerMsg)

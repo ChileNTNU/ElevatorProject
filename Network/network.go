@@ -182,7 +182,7 @@ func ListenerStatus(conn *net.UDPConn,Channel chan<- Message){
             //Close connection
             DummyCon.Close()
 
-            fmt.Println("Message status received", LocalIP);
+            if(DEBUG){ fmt.Println("NET_ Message status received", LocalIP) }
 
 		    //Check if the message you recevied it from you
 		    if(MsgRecv.IDsender == LocalIP){
@@ -240,7 +240,7 @@ func SenderStatus(ConnStatusLoopback *net.UDPConn, Channel <-chan Message){
             LocalIPtmp := strings.SplitN(LocalIPaddr.String(),":",2)
             LocalIP = LocalIPtmp[0]
 	
-            fmt.Println(LocalIP);
+            if(DEBUG){ fmt.Println(LocalIP) }
             
             MsgSend.IDsender = LocalIP;
 
